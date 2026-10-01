@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Progressa</title>
+
+<!-- PWA -->
+<meta name="theme-color" content="#0d0f12"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Progressa"/>
+<meta name="description" content="Progressa — Acompanha os teus objetivos diários, semanais, mensais e anuais."/>
+<link rel="manifest" id="pwa-manifest"/>
+
+<!-- Apple touch icon (SVG inline via data URI set by JS) -->
+<link rel="apple-touch-icon" id="pwa-icon"/>
+
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f9;
+  --white:#ffffff;
+  --surface:#ffffff;
+  --border:#eaedf2;
+  --text:#1a1d2e;
+  --text2:#6b7280;
+  --text3:#adb5bd;
+  --accent:#1db954;
+  --accent-dim:rgba(29,185,84,0.1);
+  --accent-dark:#17a348;
+  --daily:#4a6cf7;
+  --weekly:#1db954;
+  --monthly:#f59e0b;
+  --yearly:#a855f7;
+  --red:#ef4444;
+  --red-dim:rgba(239,68,68,0.1);
+  --shadow:0 2px 12px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 20px rgba(0,0,0,0.1);
+  --radius:16px;
+  --radius-sm:12px;
+  --nav-h:72px;
+  --fs:15px;
+}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Nunito',sans-serif;font-size:var(--fs);
+  display:flex;flex-direction:column;
+  max-width:480px;margin:0 auto;
+  position:relative;
+}
+
+/* ── APP SHELL ── */
+.app-header{
+  background:var(--white);
+  padding:16px 20px 0;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+  position:sticky;top:0;z-index:60;
+}
+.header-top{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;
+}
+.header-greeting{font-size:0.78rem;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.header-name{font-size:1.35rem;font-weight:900;color:var(--text);line-height:1.1;}
+.header-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--daily),var(--accent));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;color:#fff;font-weight:800;cursor:pointer;
+  flex-shrink:0;
+}
+
+/* type tabs */
+.type-tabs{display:flex;gap:0;}
+.type-tab{
+  flex:1;padding:10px 8px;text-align:center;
+  font-size:0.82rem;font-weight:700;color:var(--text2);
+  border:none;background:none;cursor:pointer;
+  border-bottom:2.5px solid transparent;transition:all 0.18s;
+}
+.type-tab.active{color:var(--tab-color,var(--daily));border-bottom-color:var(--tab-color,var(--daily));}
+
+/* ── SCROLL AREA ── */
+.app-body{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:20px 16px calc(var(--nav-h) + 20px);
+  scrollbar-width:none;
+}
+.app-body::-webkit-scrollbar{display:none;}
+
+/* page visibility */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ── PAGE HEADER ── */
+.page-header{margin-bottom:20px;}
+.page-title{font-size:1.6rem;font-weight:900;color:var(--text);line-height:1.1;}
+.page-sub{font-size:0.82rem;color:var(--text2);margin-top:3px;font-weight:500;}
+
+/* ── STATS STRIP ── */
+.stats-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.stat-pill{
+  background:var(--white);border-radius:var(--radius-sm);
+  padding:14px 12px;text-align:center;
+  box-shadow:var(--shadow);border:1px solid var(--border);
+  position:relative;overflow:hidden;
+}
+.stat-pill::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--pill-color,var(--accent));border-radius:3px 3px 0 0;}
+.stat-num{font-size:1.6rem;font-weight:900;color:var(--pill-color,var(--accent));line-height:1;}
+.stat-lbl{font-size:0.68rem;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;}
+
+/* ── PROGRESS RING ── */
+.progress-ring-wrap{display:flex;align-items:center;gap:16px;background:var(--white);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:20px;border:1px solid var(--border);}
+.ring-svg{flex-shrink:0;}
+.ring-info{}
+.ring-pct{font-size:1.4rem;font-weight:900;color:var(--text);}
+.ring-desc{font-size:0.8rem;color:var(--text2);font-weight:600;margin-top:2px;}
+.ring-bar-wrap{margin-top:8px;background:var(--bg);border-radius:10px;height:6px;overflow:hidden;width:140px;}
+.ring-bar{height:100%;border-radius:10px;transition:width 0.5s ease;}
+
+/* ── GOAL CARDS ── */
+.goals-section-title{font-size:0.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.goals-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.goal-card{
+  background:var(--white);border-radius:var(--radius);
+  padding:14px 16px;display:flex;align-items:center;gap:14px;
+  box-shadow:var(--shadow);border:1px solid var(--border);
+  transition:all 0.2s;animation:slideUp 0.25s ease both;
+  cursor:default;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.goal-card.done{background:#fafafa;}
+.goal-card.done .goal-card-name{text-decoration:line-through;color:var(--text3);}
+.goal-card.archived{opacity:0.45;}
+
+/* icon circle */
+.goal-icon{
+  width:46px;height:46px;min-width:46px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;transition:all 0.2s;
+}
+
+.goal-card-body{flex:1;min-width:0;}
+.goal-card-name{font-size:0.92rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.goal-card-note{font-size:0.76rem;color:var(--text2);margin-top:2px;font-weight:500;}
+.goal-card-meta{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;}
+.priority-tag{font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.3px;}
+.p-alta{background:rgba(239,68,68,0.1);color:#ef4444;}
+.p-media{background:rgba(245,158,11,0.1);color:#d97706;}
+.p-baixa{background:rgba(29,185,84,0.1);color:#16a34a;}
+
+/* complete button */
+.complete-btn{
+  flex-shrink:0;padding:8px 14px;
+  border-radius:30px;border:none;
+  font-family:'Nunito',sans-serif;font-size:0.78rem;font-weight:800;
+  cursor:pointer;transition:all 0.18s;white-space:nowrap;
+}
+.complete-btn.undone{
+  background:var(--btn-color,var(--accent));
+  color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,0.15);
+}
+.complete-btn.undone:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.complete-btn.done-btn{
+  background:transparent;
+  border:1.5px solid var(--border);
+  color:var(--text3);
+  padding:6px 12px;
+}
+/* swipe actions */
+.goal-card-actions{display:flex;gap:4px;opacity:1;}
+.icon-btn{background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:8px;font-size:0.82rem;color:var(--text3);transition:all 0.15s;font-weight:700;}
+.icon-btn:hover{background:var(--bg);color:var(--text);}
+.icon-btn.del{color:#ef4444;opacity:0.7;}
+.icon-btn.del:hover{background:var(--red-dim);color:var(--red);opacity:1;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;
+  background:var(--white);
+  border-top:1px solid var(--border);
+  height:var(--nav-h);
+  display:flex;align-items:center;
+  padding:0 8px 8px;
+  z-index:70;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.06);
+}
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:8px 4px;border-radius:12px;border:none;background:none;
+  cursor:pointer;color:var(--text3);font-family:'Nunito',sans-serif;
+  font-size:0.62rem;font-weight:700;transition:all 0.15s;
+  position:relative;
+}
+.nav-btn.active{color:var(--accent);}
+.nav-btn .nav-icon{font-size:1.3rem;line-height:1;}
+.nav-btn .nav-dot{
+  position:absolute;top:6px;right:calc(50% - 14px);
+  width:7px;height:7px;border-radius:50%;background:var(--red);
+  border:2px solid var(--white);display:none;
+}
+.nav-btn .nav-dot.show{display:block;}
+
+/* ── ADD FAB ── */
+.fab{
+  position:fixed;bottom:calc(var(--nav-h) + 16px);right:20px;
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,var(--daily),var(--accent));
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;color:#fff;
+  box-shadow:0 6px 20px rgba(74,108,247,0.35);
+  z-index:65;transition:all 0.2s;
+}
+.fab:hover{transform:scale(1.08);}
+.fab:active{transform:scale(0.95);}
+
+/* ── EMPTY ── */
+.empty-state{
+  text-align:center;padding:48px 20px 32px;
+  background:var(--white);border-radius:var(--radius);
+  border:2px dashed var(--border);
+}
+.empty-emoji{font-size:2.8rem;display:block;margin-bottom:12px;}
+.empty-title{font-size:1rem;font-weight:800;color:var(--text);margin-bottom:6px;}
+.empty-sub{font-size:0.82rem;color:var(--text2);font-weight:500;}
+
+/* ── RECORDS ── */
+.records-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.record-card{background:var(--white);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);border:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.record-icon{font-size:1.5rem;}
+.record-val{font-size:1.3rem;font-weight:900;color:var(--text);}
+.record-lbl{font-size:0.7rem;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;}
+
+/* ── FILTER CHIPS ── */
+.filter-strip{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.filter-strip::-webkit-scrollbar{display:none;}
+.chip{
+  padding:6px 14px;border-radius:30px;border:1.5px solid var(--border);
+  background:var(--white);font-family:'Nunito',sans-serif;font-size:0.78rem;font-weight:700;
+  cursor:pointer;color:var(--text2);white-space:nowrap;transition:all 0.15s;
+  flex-shrink:0;
+}
+.chip.active{background:var(--chip-color,var(--accent));border-color:var(--chip-color,var(--accent));color:#fff;}
+
+/* ── PROGRESS PAGE ── */
+.chart-toggle{display:flex;gap:8px;margin-bottom:20px;}
+.chart-tab{padding:8px 16px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:'Nunito',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;color:var(--text2);transition:all 0.15s;}
+.chart-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.comparison-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.comp-card{background:var(--white);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.comp-label{font-size:0.7rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;}
+.comp-value{font-size:1.4rem;font-weight:900;color:var(--text);}
+.comp-change{font-size:0.75rem;font-weight:700;margin-top:3px;}
+.up{color:var(--accent);}
+.down{color:var(--red);}
+.neutral{color:var(--text3);}
+.chart-section{margin-bottom:24px;}
+.chart-section-title{font-size:0.8rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.chart-card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:10px;}
+.chart-card-title{font-size:0.82rem;font-weight:800;color:var(--text);margin-bottom:2px;}
+.chart-card-sub{font-size:0.74rem;color:var(--text2);font-weight:500;margin-bottom:14px;}
+.chart-wrap{position:relative;}
+.chart-wrap.sm{height:100px;}
+.chart-wrap.md{height:180px;}
+.chart-wrap.lg{height:230px;}
+
+/* ── HISTORY ── */
+.history-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.filter-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;}
+.filter-label{font-size:0.7rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;}
+.filter-input{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:8px 11px;font-family:'Nunito',sans-serif;font-size:0.84rem;color:var(--text);font-weight:600;outline:none;transition:border-color 0.15s;width:100%;}
+.filter-input:focus{border-color:var(--accent);}
+.filter-input::-webkit-calendar-picker-indicator{opacity:0.5;}
+.filter-row-btns{display:flex;gap:7px;align-items:flex-end;}
+.btn-filt{padding:8px 14px;border-radius:30px;border:none;background:var(--accent);color:#fff;font-family:'Nunito',sans-serif;font-size:0.78rem;font-weight:800;cursor:pointer;white-space:nowrap;}
+.btn-filt-rst{padding:8px 12px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);color:var(--text2);font-family:'Nunito',sans-serif;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.hist-summary{font-size:0.78rem;color:var(--text2);font-weight:600;margin-bottom:10px;}
+.hist-item{background:var(--white);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);border:1px solid var(--border);}
+.hist-date{font-size:0.88rem;font-weight:800;color:var(--text);}
+.hist-meta{font-size:0.74rem;color:var(--text2);margin-top:2px;font-weight:500;}
+.hist-pct{font-size:1.2rem;font-weight:900;}
+.hist-bar{height:4px;background:var(--bg);border-radius:4px;margin-top:7px;overflow:hidden;}
+.hist-fill{height:100%;border-radius:4px;transition:width 0.5s;}
+
+/* ── ACHIEVEMENTS ── */
+.medals-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.medal-card{background:var(--white);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);border:1.5px solid var(--border);transition:all 0.2s;}
+.medal-card.unlocked{border-color:var(--accent);background:var(--accent-dim);}
+.medal-emoji{font-size:1.8rem;display:block;margin-bottom:8px;}
+.medal-name{font-size:0.82rem;font-weight:800;color:var(--text);}
+.medal-desc{font-size:0.72rem;color:var(--text2);font-weight:500;margin-top:2px;}
+
+/* ── SETTINGS ── */
+.settings-section{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;margin-bottom:12px;}
+.settings-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;transition:background 0.15s;gap:10px;}
+.settings-header:hover{background:#fafafa;}
+.settings-header-left{display:flex;align-items:center;gap:10px;}
+.settings-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.settings-title{font-size:0.9rem;font-weight:800;color:var(--text);}
+.settings-arrow{font-size:0.7rem;color:var(--text3);transition:transform 0.2s;}
+.settings-arrow.open{transform:rotate(180deg);}
+.settings-body{display:none;border-top:1px solid var(--border);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bg);}
+.settings-row:last-child{border-bottom:none;}
+.settings-row-label{font-size:0.86rem;font-weight:700;color:var(--text);}
+.settings-row-sub{font-size:0.72rem;color:var(--text2);font-weight:500;margin-top:2px;}
+.settings-row-right{flex-shrink:0;}
+
+/* toggle */
+.sw{position:relative;width:44px;height:25px;}
+.sw input{opacity:0;width:0;height:0;}
+.sw-slider{position:absolute;inset:0;background:#dde1e9;border-radius:25px;cursor:pointer;transition:all 0.22s;}
+.sw-slider::before{content:'';position:absolute;width:19px;height:19px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:all 0.22s;box-shadow:0 1px 4px rgba(0,0,0,0.15);}
+input:checked+.sw-slider{background:var(--accent);}
+input:checked+.sw-slider::before{transform:translateX(19px);}
+
+/* accent dots */
+.accent-dots{display:flex;gap:7px;flex-wrap:wrap;}
+.accent-dot{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all 0.15s;}
+.accent-dot.active{border-color:var(--text);transform:scale(1.15);}
+
+/* font size */
+.font-btns{display:flex;gap:6px;}
+.font-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:none;font-family:'Nunito',sans-serif;cursor:pointer;color:var(--text2);font-weight:700;transition:all 0.15s;}
+.font-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* sort */
+.sort-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.sort-btn{padding:5px 10px;border-radius:20px;border:1.5px solid var(--border);background:none;font-family:'Nunito',sans-serif;font-size:0.74rem;cursor:pointer;color:var(--text2);font-weight:700;transition:all 0.15s;}
+.sort-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* settings input */
+.s-input{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-family:'Nunito',sans-serif;font-size:0.88rem;color:var(--text);font-weight:600;outline:none;transition:border-color 0.15s;margin-top:8px;}
+.s-input:focus{border-color:var(--accent);}
+.s-input::placeholder{color:var(--text3);}
+
+/* lang */
+.lang-badge-s{background:var(--accent-dim);color:var(--accent-dark);font-size:0.7rem;font-weight:800;padding:3px 9px;border-radius:20px;}
+.lang-search-s{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-family:'Nunito',sans-serif;font-size:0.86rem;color:var(--text);font-weight:600;outline:none;transition:border-color 0.15s;margin-bottom:10px;}
+.lang-search-s:focus{border-color:var(--accent);}
+.lang-search-s::placeholder{color:var(--text3);}
+.lang-grid-s{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:300px;overflow-y:auto;}
+.lang-grid-s::-webkit-scrollbar{width:3px;}
+.lang-grid-s::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.lang-btn-s{padding:9px 10px;border-radius:10px;border:1.5px solid var(--border);background:none;font-family:'Nunito',sans-serif;font-size:0.78rem;cursor:pointer;color:var(--text);text-align:left;display:flex;align-items:center;gap:7px;font-weight:600;transition:all 0.15s;}
+.lang-btn-s:hover{border-color:var(--accent);}
+.lang-btn-s.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent-dark);font-weight:800;}
+
+/* reset */
+.reset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 18px 0;}
+.reset-type-btn{padding:12px 10px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);font-family:'Nunito',sans-serif;font-size:0.8rem;font-weight:800;cursor:pointer;color:var(--text);transition:all 0.15s;display:flex;flex-direction:column;gap:4px;align-items:flex-start;}
+.reset-type-btn:hover{border-color:var(--red);background:var(--red-dim);}
+.reset-dot{width:7px;height:7px;border-radius:50%;}
+.reset-all-btn{margin:10px 18px 14px;width:calc(100% - 36px);padding:12px;border-radius:12px;border:1.5px solid var(--red);background:var(--red-dim);color:var(--red);font-family:'Nunito',sans-serif;font-size:0.86rem;font-weight:800;cursor:pointer;transition:all 0.15s;}
+.reset-all-btn:hover{background:var(--red);color:#fff;}
+
+/* io buttons */
+.io-btns{display:flex;gap:8px;padding:14px 18px;}
+.io-btn{flex:1;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg);font-family:'Nunito',sans-serif;font-size:0.82rem;font-weight:800;cursor:pointer;color:var(--text);transition:all 0.15s;text-align:center;}
+.io-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+.modal{
+  background:var(--white);border-radius:24px 24px 0 0;
+  width:100%;max-width:480px;
+  padding:20px 20px 32px;
+  max-height:90vh;overflow-y:auto;
+  animation:slideSheet 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes slideSheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 18px;}
+.modal-title{font-size:1.15rem;font-weight:900;color:var(--text);margin-bottom:18px;}
+.modal-label{font-size:0.74rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;display:block;}
+.modal-input{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;font-family:'Nunito',sans-serif;font-size:0.9rem;color:var(--text);font-weight:600;outline:none;transition:border-color 0.15s;margin-bottom:14px;}
+.modal-input:focus{border-color:var(--accent);}
+.modal-input::placeholder{color:var(--text3);}
+.modal-select{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;font-family:'Nunito',sans-serif;font-size:0.88rem;color:var(--text);font-weight:600;outline:none;margin-bottom:14px;appearance:none;background:var(--white);}
+.type-chips{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;}
+.type-chip{padding:9px 14px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:'Nunito',sans-serif;font-size:0.8rem;font-weight:800;cursor:pointer;color:var(--text2);transition:all 0.15s;display:flex;align-items:center;gap:5px;}
+.type-chip.sel{color:#fff;}
+.color-dots-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.color-d{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all 0.15s;}
+.color-d.active{border-color:var(--text);transform:scale(1.2);}
+.modal-actions{display:flex;gap:10px;margin-top:6px;}
+.modal-cancel{flex:1;padding:13px;border-radius:30px;border:1.5px solid var(--border);background:none;font-family:'Nunito',sans-serif;font-size:0.88rem;font-weight:800;cursor:pointer;color:var(--text2);}
+.modal-save{flex:2;padding:13px;border-radius:30px;border:none;background:var(--accent);color:#fff;font-family:'Nunito',sans-serif;font-size:0.88rem;font-weight:900;cursor:pointer;box-shadow:0 4px 14px rgba(29,185,84,0.3);transition:all 0.15s;}
+.modal-save:hover{filter:brightness(1.06);}
+
+/* CONFIRM */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
+.confirm-box{background:var(--white);border-radius:20px;padding:24px;width:100%;max-width:340px;text-align:center;animation:popUp 0.22s ease;}
+@keyframes popUp{from{opacity:0;transform:scale(0.9)}to{opacity:1;transform:scale(1)}}
+.confirm-emoji{font-size:2.2rem;display:block;margin-bottom:10px;}
+.confirm-title{font-size:1.05rem;font-weight:900;color:var(--text);margin-bottom:6px;}
+.confirm-msg{font-size:0.82rem;color:var(--text2);font-weight:500;margin-bottom:20px;line-height:1.5;}
+.confirm-btns{display:flex;gap:8px;}
+.confirm-cancel{flex:1;padding:11px;border-radius:30px;border:1.5px solid var(--border);background:none;font-family:'Nunito',sans-serif;font-size:0.86rem;font-weight:800;cursor:pointer;color:var(--text2);}
+.confirm-ok{flex:2;padding:11px;border-radius:30px;border:none;background:var(--red);color:#fff;font-family:'Nunito',sans-serif;font-size:0.86rem;font-weight:900;cursor:pointer;}
+
+/* CELEBRATE */
+.celebrate-wrap{position:fixed;inset:0;z-index:400;pointer-events:none;display:flex;align-items:center;justify-content:center;}
+.celebrate-card{background:var(--white);border-radius:20px;padding:28px 32px;text-align:center;box-shadow:0 12px 50px rgba(0,0,0,0.15);animation:pop 0.4s cubic-bezier(0.34,1.56,0.64,1),fadeAway 0.4s ease 2.4s forwards;}
+@keyframes pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}
+@keyframes fadeAway{from{opacity:1}to{opacity:0;transform:translateY(-16px)}}
+.celebrate-big{font-size:2.8rem;display:block;margin-bottom:10px;}
+.celebrate-text{font-size:1.15rem;font-weight:900;color:var(--text);}
+.celebrate-sub{font-size:0.82rem;color:var(--text2);font-weight:600;margin-top:4px;}
+
+/* ── LOGIN SCREEN ── */
+.login-screen{
+  position:fixed;inset:0;z-index:1000;
+  background:linear-gradient(160deg,#0d0f12 0%,#151922 50%,#0d1117 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;overflow-y:auto;
+}
+.login-logo{
+  width:84px;height:84px;border-radius:24px;
+  background:none;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:26px;
+  filter:drop-shadow(0 8px 24px rgba(26,86,219,0.4));
+  animation:popUp 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.login-box{width:100%;max-width:380px;}
+.login-title{font-family:'Nunito',sans-serif;font-size:1.55rem;font-weight:900;color:#e8ecf0;text-align:center;margin-bottom:4px;}
+.login-sub{font-size:0.84rem;color:#5c6a7a;text-align:center;margin-bottom:30px;font-weight:600;}
+.login-field{margin-bottom:14px;}
+.login-label{display:block;font-size:0.72rem;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.login-input{
+  width:100%;padding:14px 16px;border-radius:14px;
+  border:2px solid #2a3040;background:#1a1e26;
+  font-family:'Nunito',sans-serif;font-size:0.92rem;font-weight:600;
+  color:#e8ecf0;outline:none;transition:border-color 0.18s;
+}
+.login-input:focus{border-color:#4a6cf7;background:#1e2330;}
+.login-input::placeholder{color:#3a4455;}
+.login-input.err{border-color:#ef4444;}
+.login-err{font-size:0.75rem;color:#ef4444;font-weight:700;margin-top:5px;display:none;}
+.login-btn{
+  width:100%;padding:15px;border-radius:14px;border:none;
+  background:linear-gradient(135deg,#4a6cf7 0%,#1db954 100%);
+  color:#fff;font-family:'Nunito',sans-serif;font-size:0.95rem;font-weight:900;
+  cursor:pointer;transition:all 0.18s;margin-top:6px;margin-bottom:16px;
+  box-shadow:0 4px 20px rgba(74,108,247,0.3);letter-spacing:0.3px;
+}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(74,108,247,0.4);}
+.login-btn:active{transform:scale(0.98);}
+.login-divider{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.login-div-line{flex:1;height:1px;background:#1e2530;}
+.login-div-text{font-size:0.76rem;color:#3a4455;font-weight:700;}
+.login-guest{
+  width:100%;padding:13px;border-radius:14px;
+  border:1.5px solid #2a3040;background:transparent;
+  color:#6b7280;font-family:'Nunito',sans-serif;font-size:0.88rem;font-weight:700;
+  cursor:pointer;transition:all 0.18s;margin-bottom:22px;
+}
+.login-guest:hover{border-color:#4a6cf7;color:#4a6cf7;background:rgba(74,108,247,0.06);}
+.login-toggle{font-size:0.82rem;color:#5c6a7a;text-align:center;font-weight:600;}
+.login-toggle b{color:#4a6cf7;cursor:pointer;font-weight:800;}
+.login-toggle b:hover{text-decoration:underline;}
+.login-terms{font-size:0.7rem;color:#3a4455;text-align:center;margin-top:20px;line-height:1.6;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.shake{animation:shake 0.35s ease;}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div class="login-screen" id="login-screen">
+  <div class="login-logo">
+    <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- circle background -->
+      <circle cx="26" cy="26" r="26" fill="url(#lgBg)"/>
+      <!-- line chart -->
+      <polyline points="8,36 16,28 24,32 34,18" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+      <circle cx="8" cy="36" r="2.5" fill="#7ee8fa"/>
+      <circle cx="16" cy="28" r="2.5" fill="#7ee8fa"/>
+      <circle cx="24" cy="32" r="2.5" fill="#7ee8fa"/>
+      <circle cx="34" cy="18" r="2.5" fill="#7ee8fa"/>
+      <!-- arrow up -->
+      <line x1="34" y1="18" x2="42" y2="10" stroke="#1db954" stroke-width="2.5" stroke-linecap="round"/>
+      <polyline points="37,10 42,10 42,15" stroke="#1db954" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <!-- flame -->
+      <path d="M28 14 C28 14 32 17 30 21 C30 21 33 19 32 15 C34 17 36 20 34 24 C32 27 28 28 26 24 C24 20 26 14 28 14Z" fill="white" opacity="0.85"/>
+      <!-- circular arc -->
+      <path d="M44 30 A18 18 0 1 1 26 8" stroke="#1db954" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <defs>
+        <linearGradient id="lgBg" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#1a56db"/>
+          <stop offset="100%" stop-color="#0ea5e9"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+  <div class="login-box">
+    <div class="login-title" id="login-title">Progressa</div>
+    <div class="login-sub" id="login-sub">Entra ou cria a tua conta</div>
+
+    <div class="login-field">
+      <label class="login-label" id="login-name-lbl">Nome</label>
+      <input class="login-input" id="login-name" type="text" placeholder="O teu nome…" autocomplete="name"/>
+      <div class="login-err" id="login-name-err">Introduz o teu nome</div>
+    </div>
+    <div class="login-field" id="login-pass-wrap">
+      <label class="login-label" id="login-pass-lbl">Senha</label>
+      <input class="login-input" id="login-pass" type="password" placeholder="Senha…" autocomplete="current-password"/>
+      <div class="login-err" id="login-pass-err">Senha incorreta</div>
+    </div>
+    <div class="login-field" id="login-pass2-wrap" style="display:none">
+      <label class="login-label" id="login-pass2-lbl">Confirmar Senha</label>
+      <input class="login-input" id="login-pass2" type="password" placeholder="Repete a senha…"/>
+      <div class="login-err" id="login-pass2-err">As senhas não coincidem</div>
+    </div>
+
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Entrar</button>
+
+    <div class="login-divider"><div class="login-div-line"></div><div class="login-div-text" id="login-or-text">OU</div><div class="login-div-line"></div></div>
+    <button class="login-guest" onclick="enterAsGuest()" id="login-guest-btn">👤 Continuar sem conta</button>
+
+    <div class="login-toggle" id="login-toggle">Não tens conta? <b onclick="toggleLoginMode()">Criar conta</b></div>
+    <div class="login-terms" id="login-terms">Os teus dados ficam guardados apenas neste dispositivo.<br>Sem servidores, sem tracking.</div>
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<div class="app-header" id="app-header">
+  <div class="header-top">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="34" height="34" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+        <circle cx="26" cy="26" r="26" fill="url(#hdrBg)"/>
+        <polyline points="8,36 16,28 24,32 34,18" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+        <circle cx="8" cy="36" r="2.5" fill="#7ee8fa"/><circle cx="16" cy="28" r="2.5" fill="#7ee8fa"/><circle cx="24" cy="32" r="2.5" fill="#7ee8fa"/><circle cx="34" cy="18" r="2.5" fill="#7ee8fa"/>
+        <line x1="34" y1="18" x2="42" y2="10" stroke="#1db954" stroke-width="2.5" stroke-linecap="round"/>
+        <polyline points="37,10 42,10 42,15" stroke="#1db954" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M28 14 C28 14 32 17 30 21 C30 21 33 19 32 15 C34 17 36 20 34 24 C32 27 28 28 26 24 C24 20 26 14 28 14Z" fill="white" opacity="0.85"/>
+        <defs><linearGradient id="hdrBg" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1a56db"/><stop offset="100%" stop-color="#0ea5e9"/></linearGradient></defs>
+      </svg>
+      <div>
+        <div class="header-greeting" id="hdr-greeting">Bom dia,</div>
+        <div class="header-name" id="hdr-name">Progressa</div>
+      </div>
+    </div>
+    <div class="header-avatar" onclick="showPage('settings')" id="hdr-avatar">?</div>
+  </div>
+  <div class="type-tabs" id="type-tabs">
+    <button class="type-tab active" style="--tab-color:#4a6cf7" onclick="switchTab('daily',this)">☀️ Diários</button>
+    <button class="type-tab" style="--tab-color:#1db954" onclick="switchTab('weekly',this)">📅 Semanais</button>
+    <button class="type-tab" style="--tab-color:#f59e0b" onclick="switchTab('monthly',this)">🗓 Mensais</button>
+    <button class="type-tab" style="--tab-color:#a855f7" onclick="switchTab('yearly',this)">📆 Anuais</button>
+  </div>
+</div>
+
+<!-- ── BODY ── -->
+<div class="app-body" id="app-body">
+
+  <!-- GOALS PAGE -->
+  <div class="page active" id="page-goals">
+    <div id="goals-content"></div>
+  </div>
+
+  <!-- PROGRESS PAGE -->
+  <div class="page" id="page-progress">
+    <div class="page-header"><div class="page-title" id="pg-progress-title">Progresso</div><div class="page-sub" id="pg-progress-sub">Evolução dos teus objetivos</div></div>
+    <div class="chart-toggle">
+      <button class="chart-tab active" onclick="setChartMode('line',this)" id="ct-line">📈 Linha</button>
+      <button class="chart-tab" onclick="setChartMode('doughnut',this)" id="ct-donut">🍩 Circular</button>
+    </div>
+    <div class="comparison-strip" id="comparison-strip"></div>
+    <div id="progress-charts"></div>
+  </div>
+
+  <!-- HISTORY PAGE -->
+  <div class="page" id="page-history">
+    <div class="page-header"><div class="page-title" id="pg-history-title">Histórico</div><div class="page-sub" id="pg-history-sub">Todos os teus registos</div></div>
+    <div class="history-filters">
+      <div class="filter-group"><span class="filter-label" id="lbl-from">De</span><input class="filter-input" type="date" id="filter-from"/></div>
+      <div class="filter-group"><span class="filter-label" id="lbl-to">Até</span><input class="filter-input" type="date" id="filter-to"/></div>
+      <div class="filter-row-btns">
+        <button class="btn-filt" onclick="applyFilter()" id="btn-filt">Filtrar</button>
+        <button class="btn-filt-rst" onclick="resetFilter()" id="btn-filt-rst">Tudo</button>
+      </div>
+    </div>
+    <div class="hist-summary" id="hist-summary"></div>
+    <div id="hist-list"></div>
+  </div>
+
+  <!-- ACHIEVEMENTS PAGE -->
+  <div class="page" id="page-achievements">
+    <div class="page-header"><div class="page-title" id="pg-ach-title">Conquistas</div><div class="page-sub" id="pg-ach-sub">Os teus recordes e medalhas</div></div>
+    <div id="ach-body"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="page-header"><div class="page-title" id="pg-set-title">Definições</div><div class="page-sub" id="pg-set-sub">Personaliza a tua experiência</div></div>
+
+    <!-- Profile -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleS('s-profile','arr-profile')">
+        <div class="settings-header-left">
+          <div class="settings-icon" style="background:#e8f5e9">👤</div>
+          <div class="settings-title" id="lbl-s-profile">Perfil</div>
+        </div>
+        <span class="settings-arrow" id="arr-profile">▼</span>
+      </div>
+      <div class="settings-body" id="s-profile">
+        <div style="padding:14px 18px">
+          <label class="modal-label" id="lbl-username">O teu nome</label>
+          <input class="s-input" id="input-username" placeholder="Ex: João…" oninput="saveUsername(this.value)"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Appearance -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleS('s-appear','arr-appear')">
+        <div class="settings-header-left">
+          <div class="settings-icon" style="background:#e3f2fd">🎨</div>
+          <div class="settings-title" id="lbl-s-appear">Aparência</div>
+        </div>
+        <span class="settings-arrow" id="arr-appear">▼</span>
+      </div>
+      <div class="settings-body" id="s-appear">
+        <div class="settings-row">
+          <div><div class="settings-row-label" id="lbl-darkmode">Modo Escuro</div></div>
+          <div class="settings-row-right"><label class="sw"><input type="checkbox" id="tog-dark" onchange="toggleDark(this.checked)"/><span class="sw-slider"></span></label></div>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-row-label" id="lbl-accent">Cor Principal</div></div>
+          <div class="settings-row-right"><div class="accent-dots" id="accent-dots"></div></div>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-row-label" id="lbl-fontsize">Tamanho da Letra</div></div>
+          <div class="settings-row-right"><div class="font-btns">
+            <button class="font-btn" onclick="setFontSize('small',this)" id="fs-s" style="font-size:0.74rem">A</button>
+            <button class="font-btn active" onclick="setFontSize('medium',this)" id="fs-m" style="font-size:0.86rem">A</button>
+            <button class="font-btn" onclick="setFontSize('large',this)" id="fs-l" style="font-size:1rem">A</button>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Goals settings -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleS('s-goals-set','arr-goals-set')">
+        <div class="settings-header-left">
+          <div class="settings-icon" style="background:#fff3e0">🎯</div>
+          <div class="settings-title" id="lbl-s-goals">Objetivos</div>
+        </div>
+        <span class="settings-arrow" id="arr-goals-set">▼</span>
+      </div>
+      <div class="settings-body" id="s-goals-set">
+        <div class="settings-row">
+          <div><div class="settings-row-label" id="lbl-sort">Ordenação</div></div>
+          <div class="settings-row-right"><div class="sort-btns">
+            <button class="sort-btn active" id="sort-created" onclick="setSort('created',this)">Data</button>
+            <button class="sort-btn" id="sort-name" onclick="setSort('name',this)">Nome</button>
+            <button class="sort-btn" id="sort-priority" onclick="setSort('priority',this)">Prioridade</button>
+            <button class="sort-btn" id="sort-done" onclick="setSort('done',this)">Feitos último</button>
+          </div></div>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-row-label" id="lbl-archived">Mostrar arquivados</div></div>
+          <div class="settings-row-right"><label class="sw"><input type="checkbox" id="tog-archived" onchange="toggleArchived(this.checked)"/><span class="sw-slider"></span></label></div>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-row-label" id="lbl-celebrate">Celebrar 100%</div><div class="settings-row-sub">Animação quando completas tudo</div></div>
+          <div class="settings-row-right"><label class="sw"><input type="checkbox" id="tog-celebrate" checked onchange="toggleCelebrate(this.checked)"/><span class="sw-slider"></span></label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Language -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleS('s-lang','arr-lang')">
+        <div class="settings-header-left">
+          <div class="settings-icon" style="background:#e8eaf6">🌐</div>
+          <div class="settings-title" id="lbl-lang">Idioma</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="lang-badge-s" id="lang-badge">Português</span><span class="settings-arrow" id="arr-lang">▼</span></div>
+      </div>
+      <div class="settings-body" id="s-lang">
+        <div style="padding:14px 18px">
+          <input class="lang-search-s" type="text" id="lang-search" oninput="filterLangs(this.value)" placeholder="Pesquisar idioma…"/>
+          <div class="lang-grid-s" id="lang-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleS('s-data','arr-data')">
+        <div class="settings-header-left">
+          <div class="settings-icon" style="background:#e0f7fa">💾</div>
+          <div class="settings-title" id="lbl-s-data">Dados</div>
+        </div>
+        <span class="settings-arrow" id="arr-data">▼</span>
+      </div>
+      <div class="settings-body" id="s-data">
+        <div class="io-btns">
+          <button class="io-btn" onclick="exportData()">⬇️ Exportar</button>
+          <button class="io-btn" onclick="importData()">⬆️ Importar</button>
+        </div>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)"/>
+      </div>
+    </div>
+
+    <!-- Reset -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="toggleS('s-reset','arr-reset')">
+        <div class="settings-header-left">
+          <div class="settings-icon" style="background:#fce4ec">🔄</div>
+          <div class="settings-title" id="lbl-reset">Reiniciar Progresso</div>
+        </div>
+        <span class="settings-arrow" id="arr-reset">▼</span>
+      </div>
+      <div class="settings-body" id="s-reset">
+        <div class="reset-grid">
+          <button class="reset-type-btn" onclick="askReset('daily')"><div class="reset-dot" style="background:#4a6cf7"></div><span>Diários</span></button>
+          <button class="reset-type-btn" onclick="askReset('weekly')"><div class="reset-dot" style="background:#1db954"></div><span>Semanais</span></button>
+          <button class="reset-type-btn" onclick="askReset('monthly')"><div class="reset-dot" style="background:#f59e0b"></div><span>Mensais</span></button>
+          <button class="reset-type-btn" onclick="askReset('yearly')"><div class="reset-dot" style="background:#a855f7"></div><span>Anuais</span></button>
+        </div>
+        <button class="reset-all-btn" onclick="askReset('all')">⚠️ Reiniciar Tudo</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="openModal(currentTab)">＋</button>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="showPage('goals')" id="nav-goals"><span class="nav-icon">🎯</span><span id="lbl-nav-goals">Objetivos</span></button>
+  <button class="nav-btn" onclick="showPage('progress')" id="nav-progress"><span class="nav-icon">📊</span><span id="lbl-nav-progress">Progresso</span></button>
+  <button class="nav-btn" onclick="showPage('history')" id="nav-history"><span class="nav-icon">🗂</span><span id="lbl-nav-history">Histórico</span></button>
+  <button class="nav-btn" onclick="showPage('achievements')" id="nav-achievements"><span class="nav-icon">🏅</span><span id="lbl-nav-achievements">Conquistas</span></button>
+  <button class="nav-btn" onclick="showPage('settings')" id="nav-settings"><span class="nav-icon">⚙️</span><span id="lbl-nav-settings">Definições</span></button>
+</nav>
+
+<!-- GOAL MODAL -->
+<div class="overlay" id="modal" style="display:none" onclick="closeModalOut(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="m-title">Novo Objetivo</div>
+    <label class="modal-label">Tipo</label>
+    <div class="type-chips" id="type-chips"></div>
+    <label class="modal-label">Nome</label>
+    <input class="modal-input" id="g-name" placeholder="Ex: Correr 30 min…" maxlength="80"/>
+    <label class="modal-label">Notas</label>
+    <input class="modal-input" id="g-note" placeholder="Opcional…"/>
+    <label class="modal-label">Prioridade</label>
+    <select class="modal-select" id="g-priority">
+      <option value="media">Média</option>
+      <option value="alta">Alta 🔴</option>
+      <option value="baixa">Baixa 🟢</option>
+    </select>
+    <label class="modal-label">Cor</label>
+    <div class="color-dots-row" id="color-row"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-save" onclick="saveGoal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-overlay" style="display:none">
+  <div class="confirm-box">
+    <span class="confirm-emoji">⚠️</span>
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">Cancelar</button>
+      <button class="confirm-ok" onclick="doReset()">Reiniciar</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="confirm-overlay" id="del-confirm-overlay" style="display:none">
+  <div class="confirm-box">
+    <span class="confirm-emoji">🗑️</span>
+    <div class="confirm-title" id="del-confirm-title">Apagar objetivo?</div>
+    <div class="confirm-msg" id="del-confirm-msg">Esta ação não pode ser desfeita.</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeDelConfirm()">Cancelar</button>
+      <button class="confirm-ok" onclick="confirmDel()" style="background:#ef4444">Apagar</button>
+    </div>
+  </div>
+</div>
+<div class="celebrate-wrap" id="celebrate-wrap" style="display:none">
+  <div class="celebrate-card">
+    <span class="celebrate-big" id="cel-emoji">🎉</span>
+    <div class="celebrate-text" id="cel-text">100% Completo!</div>
+    <div class="celebrate-sub" id="cel-sub">Todos os objetivos cumpridos!</div>
+  </div>
+</div>
+
+<script>
+// ── LANGUAGES ──
+const LANGS=[
+  {code:'pt',flag:'🇵🇹',name:'Português'},{code:'en',flag:'🇬🇧',name:'English'},
+  {code:'es',flag:'🇪🇸',name:'Español'},{code:'fr',flag:'🇫🇷',name:'Français'},
+  {code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'it',flag:'🇮🇹',name:'Italiano'},
+  {code:'nl',flag:'🇳🇱',name:'Nederlands'},{code:'pl',flag:'🇵🇱',name:'Polski'},
+  {code:'ru',flag:'🇷🇺',name:'Русский'},{code:'zh',flag:'🇨🇳',name:'中文'},
+  {code:'ja',flag:'🇯🇵',name:'日本語'},{code:'ko',flag:'🇰🇷',name:'한국어'},
+  {code:'ar',flag:'🇸🇦',name:'العربية'},{code:'hi',flag:'🇮🇳',name:'हिन्दी'},
+  {code:'tr',flag:'🇹🇷',name:'Türkçe'},{code:'id',flag:'🇮🇩',name:'Bahasa Indonesia'},
+  {code:'sv',flag:'🇸🇪',name:'Svenska'},{code:'da',flag:'🇩🇰',name:'Dansk'},
+  {code:'fi',flag:'🇫🇮',name:'Suomi'},{code:'cs',flag:'🇨🇿',name:'Čeština'},
+  {code:'ro',flag:'🇷🇴',name:'Română'},{code:'hu',flag:'🇭🇺',name:'Magyar'},
+  {code:'el',flag:'🇬🇷',name:'Ελληνικά'},{code:'ms',flag:'🇲🇾',name:'Bahasa Melayu'},
+  {code:'th',flag:'🇹🇭',name:'ภาษาไทย'},{code:'tl',flag:'🇵🇭',name:'Filipino'},
+  {code:'af',flag:'🇿🇦',name:'Afrikaans'},{code:'ca',flag:'🏴',name:'Català'},
+];
+const LANG_PT={pt:'Português',en:'Inglês',es:'Espanhol',fr:'Francês',de:'Alemão',it:'Italiano',nl:'Holandês',pl:'Polaco',ru:'Russo',zh:'Chinês',ja:'Japonês',ko:'Coreano',ar:'Árabe',hi:'Hindi',tr:'Turco',id:'Indonésio',sv:'Sueco',da:'Dinamarquês',fi:'Finlandês',cs:'Checo',ro:'Romeno',hu:'Húngaro',el:'Grego',ms:'Malaio',th:'Tailandês',tl:'Filipino',af:'Africâner',ca:'Catalão'};
+
+const T={
+  pt:{greeting:'Bom dia,',appName:'Progressa',daily:'Diários',weekly:'Semanais',monthly:'Mensais',yearly:'Anuais',navGoals:'Objetivos',navProgress:'Progresso',navHistory:'Histórico',navAch:'Conquistas',navSettings:'Definições',add:'Adicionar',complete:'Feito ✓',done:'Feito',statDone:'Concluídos',statTotal:'Total',statPct:'Taxa',bestStreak:'Melhor Sequência',bestDay:'Melhor Dia',progressTitle:'Progresso',progressSub:'Evolução dos teus objetivos',histTitle:'Histórico',histSub:'Todos os teus registos',achTitle:'Conquistas',achSub:'Os teus recordes e medalhas',setTitle:'Definições',setSub:'Personaliza a tua experiência',filterFrom:'De',filterTo:'Até',filterBtn:'Filtrar',filterReset:'Tudo',noHist:'Sem histórico ainda.',noRes:'Sem resultados.',histDays:'dias',histPerfect:'dias perfeitos',compWeek:'Esta semana',compLastWeek:'Semana passada',compMonth:'Este mês',compLastMonth:'Mês passado',totalGoals:'Total de Objetivos',totalDone:'Total Cumprimentos',globalChart:'Visão Global',perGoalChart:'Por Objetivo',avgAccum:'Média acumulada',avgAll:'Média geral',colDone:'Cumpridos',colMissed:'Por cumprir',emptyTitle:'Sem objetivos',emptySub:'Toca em + para adicionar o teu primeiro objetivo!',locale:'pt-PT',morning:'Bom dia',afternoon:'Boa tarde',evening:'Boa noite',allFilter:'Todos',activeFilter:'Ativos',doneFilter:'Feitos',archived:'Arquivado',priorityHigh:'Alta',priorityMed:'Média',priorityLow:'Baixa',chartLine:'Linha',chartDonut:'Circular',sProfile:'Perfil',sAppearance:'Aparência',sGoals:'Objetivos',sData:'Dados',sReset:'Reiniciar Progresso',sDarkMode:'Modo Escuro',sAccent:'Cor Principal',sFont:'Tamanho da Letra',sSort:'Ordenação',sShowArchived:'Mostrar arquivados',sCelebrate:'Celebrar 100%',sUsername:'O teu nome',langLbl:'Idioma',langSearch:'Pesquisar idioma…',sSortDate:'Data',sSortName:'Nome',sSortPriority:'Prioridade',sSortDone:'Feitos último',},
+  en:{greeting:'Good morning,',appName:'Progressa',daily:'Daily',weekly:'Weekly',monthly:'Monthly',yearly:'Yearly',navGoals:'Goals',navProgress:'Progress',navHistory:'History',navAch:'Achievements',navSettings:'Settings',add:'Add',complete:'Done ✓',done:'Done',statDone:'Completed',statTotal:'Total',statPct:'Rate',bestStreak:'Best Streak',bestDay:'Best Day',progressTitle:'Progress',progressSub:'Your goals evolution',histTitle:'History',histSub:'All your records',achTitle:'Achievements',achSub:'Your records and medals',setTitle:'Settings',setSub:'Personalise your experience',filterFrom:'From',filterTo:'To',filterBtn:'Filter',filterReset:'All',noHist:'No history yet.',noRes:'No results.',histDays:'days',histPerfect:'perfect days',compWeek:'This week',compLastWeek:'Last week',compMonth:'This month',compLastMonth:'Last month',totalGoals:'Total Goals',totalDone:'Total Completions',globalChart:'Global Overview',perGoalChart:'Per Goal',avgAccum:'Cumulative avg',avgAll:'Overall avg',colDone:'Done',colMissed:'Remaining',emptyTitle:'No goals yet',emptySub:'Tap + to add your first goal!',locale:'en-GB',morning:'Good morning',afternoon:'Good afternoon',evening:'Good evening',allFilter:'All',activeFilter:'Active',doneFilter:'Done',archived:'Archived',priorityHigh:'High',priorityMed:'Medium',priorityLow:'Low',chartLine:'Line',chartDonut:'Doughnut',sProfile:'Profile',sAppearance:'Appearance',sGoals:'Goals',sData:'Data',sReset:'Reset Progress',sDarkMode:'Dark Mode',sAccent:'Accent Color',sFont:'Font Size',sSort:'Sort Order',sShowArchived:'Show archived',sCelebrate:'Celebrate 100%',sUsername:'Your name',langLbl:'Language',langSearch:'Search language…',sSortDate:'Date',sSortName:'Name',sSortPriority:'Priority',sSortDone:'Done last',},
+  es:{greeting:'Buenos días,',appName:'Progressa',daily:'Diarios',weekly:'Semanales',monthly:'Mensuales',yearly:'Anuales',navGoals:'Objetivos',navProgress:'Progreso',navHistory:'Historial',navAch:'Logros',navSettings:'Ajustes',add:'Añadir',complete:'Hecho ✓',done:'Hecho',statDone:'Completados',statTotal:'Total',statPct:'Tasa',bestStreak:'Mejor Racha',bestDay:'Mejor Día',progressTitle:'Progreso',progressSub:'Evolución de tus objetivos',histTitle:'Historial',histSub:'Todos tus registros',achTitle:'Logros',achSub:'Tus récords y medallas',setTitle:'Ajustes',setSub:'Personaliza tu experiencia',filterFrom:'Desde',filterTo:'Hasta',filterBtn:'Filtrar',filterReset:'Todo',noHist:'Sin historial.',noRes:'Sin resultados.',histDays:'días',histPerfect:'días perfectos',compWeek:'Esta semana',compLastWeek:'Semana pasada',compMonth:'Este mes',compLastMonth:'Mes pasado',totalGoals:'Total Objetivos',totalDone:'Total Completados',globalChart:'Vista Global',perGoalChart:'Por Objetivo',avgAccum:'Media acumulada',avgAll:'Media general',colDone:'Completados',colMissed:'Pendientes',emptyTitle:'Sin objetivos',emptySub:'Toca + para añadir tu primer objetivo!',locale:'es-ES',morning:'Buenos días',afternoon:'Buenas tardes',evening:'Buenas noches',allFilter:'Todos',activeFilter:'Activos',doneFilter:'Hechos',archived:'Archivado',priorityHigh:'Alta',priorityMed:'Media',priorityLow:'Baja',chartLine:'Línea',chartDonut:'Circular',sProfile:'Perfil',sAppearance:'Apariencia',sGoals:'Objetivos',sData:'Datos',sReset:'Reiniciar Progreso',sDarkMode:'Modo Oscuro',sAccent:'Color Principal',sFont:'Tamaño de Letra',sSort:'Ordenación',sShowArchived:'Mostrar archivados',sCelebrate:'Celebrar 100%',sUsername:'Tu nombre',langLbl:'Idioma',langSearch:'Buscar idioma…',sSortDate:'Fecha',sSortName:'Nombre',sSortPriority:'Prioridad',sSortDone:'Hechos último',},
+  fr:{greeting:'Bonjour,',appName:'Progressa',daily:'Quotidiens',weekly:'Hebdomadaires',monthly:'Mensuels',yearly:'Annuels',navGoals:'Objectifs',navProgress:'Progrès',navHistory:'Historique',navAch:'Succès',navSettings:'Paramètres',add:'Ajouter',complete:'Fait ✓',done:'Fait',statDone:'Accomplis',statTotal:'Total',statPct:'Taux',bestStreak:'Meilleure Série',bestDay:'Meilleur Jour',progressTitle:'Progrès',progressSub:'Évolution de tes objectifs',histTitle:'Historique',histSub:'Tous tes enregistrements',achTitle:'Succès',achSub:'Tes records et médailles',setTitle:'Paramètres',setSub:'Personnalise ton expérience',filterFrom:'De',filterTo:'À',filterBtn:'Filtrer',filterReset:'Tout',noHist:"Pas d'historique.",noRes:'Aucun résultat.',histDays:'jours',histPerfect:'jours parfaits',compWeek:'Cette semaine',compLastWeek:'Semaine dernière',compMonth:'Ce mois',compLastMonth:'Mois dernier',totalGoals:'Total Objectifs',totalDone:'Total Accomplis',globalChart:'Vue Globale',perGoalChart:'Par Objectif',avgAccum:'Moyenne cumulée',avgAll:'Moyenne générale',colDone:'Accomplis',colMissed:'Restants',emptyTitle:'Aucun objectif',emptySub:'Appuie sur + pour ajouter ton premier objectif!',locale:'fr-FR',morning:'Bonjour',afternoon:'Bon après-midi',evening:'Bonsoir',allFilter:'Tous',activeFilter:'Actifs',doneFilter:'Faits',archived:'Archivé',priorityHigh:'Haute',priorityMed:'Moyenne',priorityLow:'Basse',chartLine:'Ligne',chartDonut:'Circulaire',sProfile:'Profil',sAppearance:'Apparence',sGoals:'Objectifs',sData:'Données',sReset:'Réinitialiser',sDarkMode:'Mode Sombre',sAccent:'Couleur Principale',sFont:'Taille de Police',sSort:'Tri',sShowArchived:'Afficher archivés',sCelebrate:'Célébrer 100%',sUsername:'Ton prénom',langLbl:'Langue',langSearch:'Rechercher une langue…',sSortDate:'Date',sSortName:'Nom',sSortPriority:'Priorité',sSortDone:'Faits en dernier',},
+  de:{greeting:'Guten Morgen,',appName:'Progressa',daily:'Täglich',weekly:'Wöchentlich',monthly:'Monatlich',yearly:'Jährlich',navGoals:'Ziele',navProgress:'Fortschritt',navHistory:'Verlauf',navAch:'Erfolge',navSettings:'Einstellungen',add:'Hinzufügen',complete:'Erledigt ✓',done:'Erledigt',statDone:'Erledigt',statTotal:'Gesamt',statPct:'Quote',bestStreak:'Beste Serie',bestDay:'Bester Tag',progressTitle:'Fortschritt',progressSub:'Entwicklung deiner Ziele',histTitle:'Verlauf',histSub:'Alle deine Einträge',achTitle:'Erfolge',achSub:'Deine Rekorde und Medaillen',setTitle:'Einstellungen',setSub:'Passe deine Erfahrung an',filterFrom:'Von',filterTo:'Bis',filterBtn:'Filtern',filterReset:'Alle',noHist:'Noch kein Verlauf.',noRes:'Keine Ergebnisse.',histDays:'Tage',histPerfect:'perfekte Tage',compWeek:'Diese Woche',compLastWeek:'Letzte Woche',compMonth:'Dieser Monat',compLastMonth:'Letzter Monat',totalGoals:'Ziele gesamt',totalDone:'Erledigungen gesamt',globalChart:'Gesamtüberblick',perGoalChart:'Pro Ziel',avgAccum:'Kumulativer Ø',avgAll:'Gesamt Ø',colDone:'Erledigt',colMissed:'Ausstehend',emptyTitle:'Keine Ziele',emptySub:'Tippe auf + um loszulegen!',locale:'de-DE',morning:'Guten Morgen',afternoon:'Guten Tag',evening:'Guten Abend',allFilter:'Alle',activeFilter:'Aktiv',doneFilter:'Erledigt',archived:'Archiviert',priorityHigh:'Hoch',priorityMed:'Mittel',priorityLow:'Niedrig',chartLine:'Linie',chartDonut:'Kreis',sProfile:'Profil',sAppearance:'Erscheinungsbild',sGoals:'Ziele',sData:'Daten',sReset:'Fortschritt zurücksetzen',sDarkMode:'Dunkelmodus',sAccent:'Hauptfarbe',sFont:'Schriftgröße',sSort:'Sortierung',sShowArchived:'Archivierte anzeigen',sCelebrate:'100% feiern',sUsername:'Dein Name',langLbl:'Sprache',langSearch:'Sprache suchen…',sSortDate:'Datum',sSortName:'Name',sSortPriority:'Priorität',sSortDone:'Erledigte zuletzt',},
+  it:{greeting:'Buongiorno,',appName:'Progressa',daily:'Giornalieri',weekly:'Settimanali',monthly:'Mensili',yearly:'Annuali',navGoals:'Obiettivi',navProgress:'Progressi',navHistory:'Cronologia',navAch:'Traguardi',navSettings:'Impostazioni',add:'Aggiungi',complete:'Fatto ✓',done:'Fatto',statDone:'Completati',statTotal:'Totale',statPct:'Tasso',bestStreak:'Serie Migliore',bestDay:'Giorno Migliore',progressTitle:'Progressi',progressSub:'Evoluzione dei tuoi obiettivi',histTitle:'Cronologia',histSub:'Tutti i tuoi record',achTitle:'Traguardi',achSub:'I tuoi record e medaglie',setTitle:'Impostazioni',setSub:'Personalizza la tua esperienza',filterFrom:'Da',filterTo:'A',filterBtn:'Filtra',filterReset:'Tutto',noHist:'Nessuna cronologia.',noRes:'Nessun risultato.',histDays:'giorni',histPerfect:'giorni perfetti',compWeek:'Questa settimana',compLastWeek:'Settimana scorsa',compMonth:'Questo mese',compLastMonth:'Mese scorso',totalGoals:'Totale Obiettivi',totalDone:'Totale Completati',globalChart:'Panoramica Globale',perGoalChart:'Per Obiettivo',avgAccum:'Media cumulativa',avgAll:'Media generale',colDone:'Completati',colMissed:'Rimanenti',emptyTitle:'Nessun obiettivo',emptySub:'Tocca + per aggiungere!',locale:'it-IT',morning:'Buongiorno',afternoon:'Buon pomeriggio',evening:'Buonasera',allFilter:'Tutti',activeFilter:'Attivi',doneFilter:'Fatti',archived:'Archiviato',priorityHigh:'Alta',priorityMed:'Media',priorityLow:'Bassa',chartLine:'Linea',chartDonut:'Ciambella',sProfile:'Profilo',sAppearance:'Aspetto',sGoals:'Obiettivi',sData:'Dati',sReset:'Reimposta Progressi',sDarkMode:'Modalità Scura',sAccent:'Colore Principale',sFont:'Dimensione Carattere',sSort:'Ordinamento',sShowArchived:'Mostra archiviati',sCelebrate:'Celebra 100%',sUsername:'Il tuo nome',langLbl:'Lingua',langSearch:'Cerca lingua…',sSortDate:'Data',sSortName:'Nome',sSortPriority:'Priorità',sSortDone:'Fatti per ultimi',},
+  nl:{greeting:'Goedemorgen,',appName:'Progressa',daily:'Dagelijks',weekly:'Wekelijks',monthly:'Maandelijks',yearly:'Jaarlijks',navGoals:'Doelen',navProgress:'Voortgang',navHistory:'Geschiedenis',navAch:'Prestaties',navSettings:'Instellingen',add:'Toevoegen',complete:'Klaar ✓',done:'Klaar',statDone:'Voltooid',statTotal:'Totaal',statPct:'Percentage',bestStreak:'Beste Reeks',bestDay:'Beste Dag',progressTitle:'Voortgang',progressSub:'Evolutie van je doelen',histTitle:'Geschiedenis',histSub:'Al je records',achTitle:'Prestaties',achSub:'Je records en medailles',setTitle:'Instellingen',setSub:'Pas je ervaring aan',filterFrom:'Van',filterTo:'Tot',filterBtn:'Filteren',filterReset:'Alles',noHist:'Nog geen geschiedenis.',noRes:'Geen resultaten.',histDays:'dagen',histPerfect:'perfecte dagen',compWeek:'Deze week',compLastWeek:'Vorige week',compMonth:'Deze maand',compLastMonth:'Vorige maand',totalGoals:'Totaal Doelen',totalDone:'Totaal Voltooid',globalChart:'Globaal Overzicht',perGoalChart:'Per Doel',avgAccum:'Cumulatief gemiddelde',avgAll:'Algemeen gemiddelde',colDone:'Voltooid',colMissed:'Resterend',emptyTitle:'Geen doelen',emptySub:'Tik op + om te beginnen!',locale:'nl-NL',morning:'Goedemorgen',afternoon:'Goedemiddag',evening:'Goedenavond',allFilter:'Alle',activeFilter:'Actief',doneFilter:'Klaar',archived:'Gearchiveerd',priorityHigh:'Hoog',priorityMed:'Gemiddeld',priorityLow:'Laag',chartLine:'Lijn',chartDonut:'Donut',sProfile:'Profiel',sAppearance:'Uiterlijk',sGoals:'Doelen',sData:'Gegevens',sReset:'Voortgang resetten',sDarkMode:'Donkere modus',sAccent:'Accentkleur',sFont:'Lettergrootte',sSort:'Sortering',sShowArchived:'Gearchiveerd tonen',sCelebrate:'100% vieren',sUsername:'Jouw naam',langLbl:'Taal',langSearch:'Taal zoeken…',sSortDate:'Datum',sSortName:'Naam',sSortPriority:'Prioriteit',sSortDone:'Klaar als laatste',},
+  pl:{greeting:'Dzień dobry,',appName:'Progressa',daily:'Codzienne',weekly:'Tygodniowe',monthly:'Miesięczne',yearly:'Roczne',navGoals:'Cele',navProgress:'Postęp',navHistory:'Historia',navAch:'Osiągnięcia',navSettings:'Ustawienia',add:'Dodaj',complete:'Gotowe ✓',done:'Gotowe',statDone:'Ukończone',statTotal:'Razem',statPct:'Wskaźnik',bestStreak:'Najlepsza Seria',bestDay:'Najlepszy Dzień',progressTitle:'Postęp',progressSub:'Ewolucja twoich celów',histTitle:'Historia',histSub:'Wszystkie twoje rekordy',achTitle:'Osiągnięcia',achSub:'Twoje rekordy i medale',setTitle:'Ustawienia',setSub:'Dostosuj swoje doświadczenie',filterFrom:'Od',filterTo:'Do',filterBtn:'Filtruj',filterReset:'Wszystko',noHist:'Brak historii.',noRes:'Brak wyników.',histDays:'dni',histPerfect:'idealne dni',compWeek:'Ten tydzień',compLastWeek:'Poprzedni tydzień',compMonth:'Ten miesiąc',compLastMonth:'Poprzedni miesiąc',totalGoals:'Łącznie Cele',totalDone:'Łącznie Ukończone',globalChart:'Widok Globalny',perGoalChart:'Na Cel',avgAccum:'Skumulowana śr.',avgAll:'Ogólna śr.',colDone:'Ukończone',colMissed:'Pozostałe',emptyTitle:'Brak celów',emptySub:'Dotknij + aby zacząć!',locale:'pl-PL',morning:'Dzień dobry',afternoon:'Dzień dobry',evening:'Dobry wieczór',allFilter:'Wszystkie',activeFilter:'Aktywne',doneFilter:'Gotowe',archived:'Zarchiwizowane',priorityHigh:'Wysoki',priorityMed:'Średni',priorityLow:'Niski',chartLine:'Linia',chartDonut:'Pączek',sProfile:'Profil',sAppearance:'Wygląd',sGoals:'Cele',sData:'Dane',sReset:'Resetuj Postęp',sDarkMode:'Tryb Ciemny',sAccent:'Kolor Główny',sFont:'Rozmiar Czcionki',sSort:'Sortowanie',sShowArchived:'Pokaż zarchiwizowane',sCelebrate:'Świętuj 100%',sUsername:'Twoje imię',langLbl:'Język',langSearch:'Szukaj języka…',sSortDate:'Data',sSortName:'Nazwa',sSortPriority:'Priorytet',sSortDone:'Gotowe na końcu',},
+  ru:{greeting:'Доброе утро,',appName:'Progressa',daily:'Ежедневные',weekly:'Еженедельные',monthly:'Ежемесячные',yearly:'Ежегодные',navGoals:'Цели',navProgress:'Прогресс',navHistory:'История',navAch:'Достижения',navSettings:'Настройки',add:'Добавить',complete:'Готово ✓',done:'Готово',statDone:'Выполнено',statTotal:'Всего',statPct:'Процент',bestStreak:'Лучшая Серия',bestDay:'Лучший День',progressTitle:'Прогресс',progressSub:'Эволюция ваших целей',histTitle:'История',histSub:'Все ваши записи',achTitle:'Достижения',achSub:'Ваши рекорды и медали',setTitle:'Настройки',setSub:'Настройте свой опыт',filterFrom:'От',filterTo:'До',filterBtn:'Фильтр',filterReset:'Все',noHist:'История пуста.',noRes:'Нет результатов.',histDays:'дней',histPerfect:'идеальных дней',compWeek:'Эта неделя',compLastWeek:'Прошлая неделя',compMonth:'Этот месяц',compLastMonth:'Прошлый месяц',totalGoals:'Всего Целей',totalDone:'Всего Выполнено',globalChart:'Общий Обзор',perGoalChart:'По Цели',avgAccum:'Накопл. среднее',avgAll:'Общее среднее',colDone:'Выполнено',colMissed:'Осталось',emptyTitle:'Нет целей',emptySub:'Нажмите + чтобы начать!',locale:'ru-RU',morning:'Доброе утро',afternoon:'Добрый день',evening:'Добрый вечер',allFilter:'Все',activeFilter:'Активные',doneFilter:'Готово',archived:'В архиве',priorityHigh:'Высокий',priorityMed:'Средний',priorityLow:'Низкий',chartLine:'Линия',chartDonut:'Пончик',sProfile:'Профиль',sAppearance:'Внешний вид',sGoals:'Цели',sData:'Данные',sReset:'Сбросить прогресс',sDarkMode:'Тёмный режим',sAccent:'Цвет акцента',sFont:'Размер шрифта',sSort:'Сортировка',sShowArchived:'Показать архив',sCelebrate:'Праздновать 100%',sUsername:'Ваше имя',langLbl:'Язык',langSearch:'Поиск языка…',sSortDate:'Дата',sSortName:'Имя',sSortPriority:'Приоритет',sSortDone:'Готово в конце',},
+  zh:{greeting:'早上好，',appName:'Progressa',daily:'每日',weekly:'每周',monthly:'每月',yearly:'每年',navGoals:'目标',navProgress:'进度',navHistory:'历史',navAch:'成就',navSettings:'设置',add:'添加',complete:'完成 ✓',done:'完成',statDone:'已完成',statTotal:'总计',statPct:'完成率',bestStreak:'最佳连续',bestDay:'最佳天数',progressTitle:'进度',progressSub:'你的目标演变',histTitle:'历史',histSub:'你的所有记录',achTitle:'成就',achSub:'你的记录和奖章',setTitle:'设置',setSub:'自定义你的体验',filterFrom:'从',filterTo:'到',filterBtn:'筛选',filterReset:'全部',noHist:'暂无历史。',noRes:'无结果。',histDays:'天',histPerfect:'完美天数',compWeek:'本周',compLastWeek:'上周',compMonth:'本月',compLastMonth:'上月',totalGoals:'目标总数',totalDone:'完成总数',globalChart:'全局概览',perGoalChart:'每个目标',avgAccum:'累计平均',avgAll:'总体平均',colDone:'已完成',colMissed:'未完成',emptyTitle:'暂无目标',emptySub:'点击 + 开始!',locale:'zh-CN',morning:'早上好',afternoon:'下午好',evening:'晚上好',allFilter:'全部',activeFilter:'进行中',doneFilter:'已完成',archived:'已归档',priorityHigh:'高',priorityMed:'中',priorityLow:'低',chartLine:'折线',chartDonut:'饼图',sProfile:'个人资料',sAppearance:'外观',sGoals:'目标',sData:'数据',sReset:'重置进度',sDarkMode:'深色模式',sAccent:'主题颜色',sFont:'字体大小',sSort:'排序',sShowArchived:'显示归档',sCelebrate:'庆祝100%',sUsername:'你的名字',langLbl:'语言',langSearch:'搜索语言…',sSortDate:'日期',sSortName:'名称',sSortPriority:'优先级',sSortDone:'完成排最后',},
+  ja:{greeting:'おはようございます，',appName:'Progressa',daily:'毎日',weekly:'毎週',monthly:'毎月',yearly:'毎年',navGoals:'ゴール',navProgress:'進捗',navHistory:'履歴',navAch:'実績',navSettings:'設定',add:'追加',complete:'完了 ✓',done:'完了',statDone:'完了',statTotal:'合計',statPct:'達成率',bestStreak:'最高連続',bestDay:'最高日',progressTitle:'進捗',progressSub:'目標の進化',histTitle:'履歴',histSub:'すべての記録',achTitle:'実績',achSub:'記録とメダル',setTitle:'設定',setSub:'カスタマイズ',filterFrom:'から',filterTo:'まで',filterBtn:'絞込',filterReset:'全て',noHist:'履歴なし',noRes:'結果なし',histDays:'日',histPerfect:'完璧な日',compWeek:'今週',compLastWeek:'先週',compMonth:'今月',compLastMonth:'先月',totalGoals:'目標合計',totalDone:'完了合計',globalChart:'全体概要',perGoalChart:'目標別',avgAccum:'累積平均',avgAll:'全体平均',colDone:'完了',colMissed:'未完了',emptyTitle:'目標なし',emptySub:'+ をタップして開始!',locale:'ja-JP',morning:'おはようございます',afternoon:'こんにちは',evening:'こんばんは',allFilter:'全て',activeFilter:'進行中',doneFilter:'完了',archived:'アーカイブ',priorityHigh:'高',priorityMed:'中',priorityLow:'低',chartLine:'折れ線',chartDonut:'ドーナツ',sProfile:'プロフィール',sAppearance:'外観',sGoals:'ゴール',sData:'データ',sReset:'進捗リセット',sDarkMode:'ダークモード',sAccent:'アクセントカラー',sFont:'フォントサイズ',sSort:'並び替え',sShowArchived:'アーカイブ表示',sCelebrate:'100%を祝う',sUsername:'あなたの名前',langLbl:'言語',langSearch:'言語を検索…',sSortDate:'日付',sSortName:'名前',sSortPriority:'優先度',sSortDone:'完了を最後に',},
+  ko:{greeting:'좋은 아침,',appName:'Progressa',daily:'매일',weekly:'매주',monthly:'매월',yearly:'매년',navGoals:'목표',navProgress:'진행',navHistory:'기록',navAch:'업적',navSettings:'설정',add:'추가',complete:'완료 ✓',done:'완료',statDone:'완료됨',statTotal:'합계',statPct:'달성률',bestStreak:'최고 연속',bestDay:'최고의 날',progressTitle:'진행',progressSub:'목표의 진화',histTitle:'기록',histSub:'모든 기록',achTitle:'업적',achSub:'기록과 메달',setTitle:'설정',setSub:'경험을 커스터마이즈',filterFrom:'부터',filterTo:'까지',filterBtn:'필터',filterReset:'전체',noHist:'기록 없음.',noRes:'결과 없음.',histDays:'일',histPerfect:'완벽한 날',compWeek:'이번 주',compLastWeek:'지난 주',compMonth:'이번 달',compLastMonth:'지난 달',totalGoals:'총 목표',totalDone:'총 완료',globalChart:'전체 개요',perGoalChart:'목표별',avgAccum:'누적 평균',avgAll:'전체 평균',colDone:'완료',colMissed:'남은 것',emptyTitle:'목표 없음',emptySub:'+ 를 탭하여 시작!',locale:'ko-KR',morning:'좋은 아침',afternoon:'안녕하세요',evening:'좋은 저녁',allFilter:'전체',activeFilter:'진행 중',doneFilter:'완료',archived:'보관됨',priorityHigh:'높음',priorityMed:'중간',priorityLow:'낮음',chartLine:'선',chartDonut:'도넛',sProfile:'프로필',sAppearance:'외관',sGoals:'목표',sData:'데이터',sReset:'진행 초기화',sDarkMode:'다크 모드',sAccent:'강조 색상',sFont:'글꼴 크기',sSort:'정렬',sShowArchived:'보관 표시',sCelebrate:'100% 축하',sUsername:'이름',langLbl:'언어',langSearch:'언어 검색…',sSortDate:'날짜',sSortName:'이름',sSortPriority:'우선순위',sSortDone:'완료 마지막',},
+  ar:{greeting:'صباح الخير،',appName:'Progressa',daily:'يومية',weekly:'أسبوعية',monthly:'شهرية',yearly:'سنوية',navGoals:'أهداف',navProgress:'تقدم',navHistory:'السجل',navAch:'الإنجازات',navSettings:'الإعدادات',add:'إضافة',complete:'تم ✓',done:'تم',statDone:'مكتمل',statTotal:'المجموع',statPct:'معدل',bestStreak:'أفضل سلسلة',bestDay:'أفضل يوم',progressTitle:'التقدم',progressSub:'تطور أهدافك',histTitle:'السجل',histSub:'جميع سجلاتك',achTitle:'الإنجازات',achSub:'سجلاتك وميدالياتك',setTitle:'الإعدادات',setSub:'خصص تجربتك',filterFrom:'من',filterTo:'إلى',filterBtn:'تصفية',filterReset:'الكل',noHist:'لا يوجد سجل.',noRes:'لا توجد نتائج.',histDays:'أيام',histPerfect:'أيام مثالية',compWeek:'هذا الأسبوع',compLastWeek:'الأسبوع الماضي',compMonth:'هذا الشهر',compLastMonth:'الشهر الماضي',totalGoals:'إجمالي الأهداف',totalDone:'إجمالي المكتمل',globalChart:'نظرة عامة',perGoalChart:'لكل هدف',avgAccum:'متوسط تراكمي',avgAll:'متوسط عام',colDone:'مكتمل',colMissed:'متبقي',emptyTitle:'لا أهداف',emptySub:'اضغط + للبدء!',locale:'ar-SA',morning:'صباح الخير',afternoon:'مساء الخير',evening:'مساء الخير',allFilter:'الكل',activeFilter:'نشط',doneFilter:'تم',archived:'مؤرشف',priorityHigh:'عالي',priorityMed:'متوسط',priorityLow:'منخفض',chartLine:'خط',chartDonut:'دائري',sProfile:'الملف الشخصي',sAppearance:'المظهر',sGoals:'الأهداف',sData:'البيانات',sReset:'إعادة تعيين',sDarkMode:'الوضع الداكن',sAccent:'لون رئيسي',sFont:'حجم الخط',sSort:'ترتيب',sShowArchived:'عرض المؤرشف',sCelebrate:'احتفل بـ 100%',sUsername:'اسمك',langLbl:'اللغة',langSearch:'البحث عن لغة…',sSortDate:'تاريخ',sSortName:'اسم',sSortPriority:'أولوية',sSortDone:'تم في الأخير',},
+  hi:{greeting:'सुप्रभात,',appName:'Progressa',daily:'दैनिक',weekly:'साप्ताहिक',monthly:'मासिक',yearly:'वार्षिक',navGoals:'लक्ष्य',navProgress:'प्रगति',navHistory:'इतिहास',navAch:'उपलब्धियां',navSettings:'सेटिंग्स',add:'जोड़ें',complete:'हो गया ✓',done:'हो गया',statDone:'पूर्ण',statTotal:'कुल',statPct:'दर',bestStreak:'सर्वश्रेष्ठ क्रम',bestDay:'सर्वश्रेष्ठ दिन',progressTitle:'प्रगति',progressSub:'आपके लक्ष्यों का विकास',histTitle:'इतिहास',histSub:'आपके सभी रिकॉर्ड',achTitle:'उपलब्धियां',achSub:'आपके रिकॉर्ड और पदक',setTitle:'सेटिंग्स',setSub:'अपना अनुभव कस्टमाइज़ करें',filterFrom:'से',filterTo:'तक',filterBtn:'फ़िल्टर',filterReset:'सभी',noHist:'कोई इतिहास नहीं।',noRes:'कोई परिणाम नहीं।',histDays:'दिन',histPerfect:'सही दिन',compWeek:'इस सप्ताह',compLastWeek:'पिछले सप्ताह',compMonth:'इस महीने',compLastMonth:'पिछले महीने',totalGoals:'कुल लक्ष्य',totalDone:'कुल पूर्ण',globalChart:'वैश्विक अवलोकन',perGoalChart:'प्रति लक्ष्य',avgAccum:'संचित औसत',avgAll:'कुल औसत',colDone:'पूर्ण',colMissed:'शेष',emptyTitle:'कोई लक्ष्य नहीं',emptySub:'+ दबाएं शुरू करने के लिए!',locale:'hi-IN',morning:'सुप्रभात',afternoon:'नमस्ते',evening:'शुभ संध्या',allFilter:'सभी',activeFilter:'सक्रिय',doneFilter:'हो गया',archived:'संग्रहित',priorityHigh:'उच्च',priorityMed:'मध्यम',priorityLow:'कम',chartLine:'रेखा',chartDonut:'डोनट',sProfile:'प्रोफ़ाइल',sAppearance:'रूप',sGoals:'लक्ष्य',sData:'डेटा',sReset:'प्रगति रीसेट करें',sDarkMode:'डार्क मोड',sAccent:'मुख्य रंग',sFont:'फ़ॉन्ट आकार',sSort:'क्रमबद्ध करें',sShowArchived:'संग्रहित दिखाएं',sCelebrate:'100% मनाएं',sUsername:'आपका नाम',langLbl:'भाषा',langSearch:'भाषा खोजें…',sSortDate:'तारीख',sSortName:'नाम',sSortPriority:'प्राथमिकता',sSortDone:'हो गया अंत में',},
+  tr:{greeting:'Günaydın,',appName:'Progressa',daily:'Günlük',weekly:'Haftalık',monthly:'Aylık',yearly:'Yıllık',navGoals:'Hedefler',navProgress:'İlerleme',navHistory:'Geçmiş',navAch:'Başarılar',navSettings:'Ayarlar',add:'Ekle',complete:'Tamam ✓',done:'Tamam',statDone:'Tamamlandı',statTotal:'Toplam',statPct:'Oran',bestStreak:'En İyi Seri',bestDay:'En İyi Gün',progressTitle:'İlerleme',progressSub:'Hedeflerinin evrimi',histTitle:'Geçmiş',histSub:'Tüm kayıtların',achTitle:'Başarılar',achSub:'Rekorların ve madalyaların',setTitle:'Ayarlar',setSub:'Deneyimini özelleştir',filterFrom:'Başlangıç',filterTo:'Bitiş',filterBtn:'Filtrele',filterReset:'Tümü',noHist:'Geçmiş yok.',noRes:'Sonuç yok.',histDays:'gün',histPerfect:'mükemmel gün',compWeek:'Bu hafta',compLastWeek:'Geçen hafta',compMonth:'Bu ay',compLastMonth:'Geçen ay',totalGoals:'Toplam Hedef',totalDone:'Toplam Tamamlanan',globalChart:'Genel Bakış',perGoalChart:'Hedef Başına',avgAccum:'Kümülatif ort.',avgAll:'Genel ortalama',colDone:'Tamamlandı',colMissed:'Kalan',emptyTitle:'Hedef yok',emptySub:'Başlamak için + ye dokun!',locale:'tr-TR',morning:'Günaydın',afternoon:'İyi günler',evening:'İyi akşamlar',allFilter:'Tümü',activeFilter:'Aktif',doneFilter:'Tamam',archived:'Arşivlendi',priorityHigh:'Yüksek',priorityMed:'Orta',priorityLow:'Düşük',chartLine:'Çizgi',chartDonut:'Halka',sProfile:'Profil',sAppearance:'Görünüm',sGoals:'Hedefler',sData:'Veriler',sReset:'İlerlemeyi Sıfırla',sDarkMode:'Karanlık Mod',sAccent:'Ana Renk',sFont:'Yazı Boyutu',sSort:'Sıralama',sShowArchived:'Arşivi göster',sCelebrate:'%100 kutla',sUsername:'Adın',langLbl:'Dil',langSearch:'Dil ara…',sSortDate:'Tarih',sSortName:'İsim',sSortPriority:'Öncelik',sSortDone:'Tamam sona',},
+  id:{greeting:'Selamat pagi,',appName:'Progressa',daily:'Harian',weekly:'Mingguan',monthly:'Bulanan',yearly:'Tahunan',navGoals:'Tujuan',navProgress:'Kemajuan',navHistory:'Riwayat',navAch:'Pencapaian',navSettings:'Pengaturan',add:'Tambah',complete:'Selesai ✓',done:'Selesai',statDone:'Diselesaikan',statTotal:'Total',statPct:'Tingkat',bestStreak:'Streak Terbaik',bestDay:'Hari Terbaik',progressTitle:'Kemajuan',progressSub:'Evolusi tujuanmu',histTitle:'Riwayat',histSub:'Semua catatanmu',achTitle:'Pencapaian',achSub:'Rekor dan medalimu',setTitle:'Pengaturan',setSub:'Sesuaikan pengalamanmu',filterFrom:'Dari',filterTo:'Sampai',filterBtn:'Filter',filterReset:'Semua',noHist:'Belum ada riwayat.',noRes:'Tidak ada hasil.',histDays:'hari',histPerfect:'hari sempurna',compWeek:'Minggu ini',compLastWeek:'Minggu lalu',compMonth:'Bulan ini',compLastMonth:'Bulan lalu',totalGoals:'Total Tujuan',totalDone:'Total Diselesaikan',globalChart:'Ikhtisar Global',perGoalChart:'Per Tujuan',avgAccum:'Rata-rata kumulatif',avgAll:'Rata-rata keseluruhan',colDone:'Selesai',colMissed:'Tersisa',emptyTitle:'Belum ada tujuan',emptySub:'Ketuk + untuk mulai!',locale:'id-ID',morning:'Selamat pagi',afternoon:'Selamat siang',evening:'Selamat malam',allFilter:'Semua',activeFilter:'Aktif',doneFilter:'Selesai',archived:'Diarsipkan',priorityHigh:'Tinggi',priorityMed:'Sedang',priorityLow:'Rendah',chartLine:'Garis',chartDonut:'Donat',sProfile:'Profil',sAppearance:'Tampilan',sGoals:'Tujuan',sData:'Data',sReset:'Reset Kemajuan',sDarkMode:'Mode Gelap',sAccent:'Warna Utama',sFont:'Ukuran Font',sSort:'Urutan',sShowArchived:'Tampilkan arsip',sCelebrate:'Rayakan 100%',sUsername:'Namamu',langLbl:'Bahasa',langSearch:'Cari bahasa…',sSortDate:'Tanggal',sSortName:'Nama',sSortPriority:'Prioritas',sSortDone:'Selesai terakhir',},
+  sv:{greeting:'God morgon,',appName:'Progressa',daily:'Dagligen',weekly:'Veckovis',monthly:'Månadsvis',yearly:'Årsvis',navGoals:'Mål',navProgress:'Framsteg',navHistory:'Historik',navAch:'Prestationer',navSettings:'Inställningar',add:'Lägg till',complete:'Klar ✓',done:'Klar',statDone:'Slutfört',statTotal:'Totalt',statPct:'Procent',bestStreak:'Bästa Svit',bestDay:'Bästa Dag',progressTitle:'Framsteg',progressSub:'Dina måls utveckling',histTitle:'Historik',histSub:'Alla dina rekord',achTitle:'Prestationer',achSub:'Dina rekord och medaljer',setTitle:'Inställningar',setSub:'Anpassa din upplevelse',filterFrom:'Från',filterTo:'Till',filterBtn:'Filtrera',filterReset:'Alla',noHist:'Ingen historik.',noRes:'Inga resultat.',histDays:'dagar',histPerfect:'perfekta dagar',compWeek:'Den här veckan',compLastWeek:'Förra veckan',compMonth:'Den här månaden',compLastMonth:'Förra månaden',totalGoals:'Totalt Mål',totalDone:'Totalt Slutfört',globalChart:'Global Översikt',perGoalChart:'Per Mål',avgAccum:'Kumulativt medel',avgAll:'Övergripande medel',colDone:'Slutfört',colMissed:'Återstående',emptyTitle:'Inga mål',emptySub:'Tryck + för att börja!',locale:'sv-SE',morning:'God morgon',afternoon:'God dag',evening:'God kväll',allFilter:'Alla',activeFilter:'Aktiva',doneFilter:'Klara',archived:'Arkiverade',priorityHigh:'Hög',priorityMed:'Medel',priorityLow:'Låg',chartLine:'Linje',chartDonut:'Munk',sProfile:'Profil',sAppearance:'Utseende',sGoals:'Mål',sData:'Data',sReset:'Återställ framsteg',sDarkMode:'Mörkt läge',sAccent:'Accentfärg',sFont:'Teckenstorlek',sSort:'Sortering',sShowArchived:'Visa arkiverade',sCelebrate:'Fira 100%',sUsername:'Ditt namn',langLbl:'Språk',langSearch:'Sök språk…',sSortDate:'Datum',sSortName:'Namn',sSortPriority:'Prioritet',sSortDone:'Klara sist',},
+  da:{greeting:'God morgen,',appName:'Progressa',daily:'Daglige',weekly:'Ugentlige',monthly:'Månedlige',yearly:'Årlige',navGoals:'Mål',navProgress:'Fremgang',navHistory:'Historie',navAch:'Præstationer',navSettings:'Indstillinger',add:'Tilføj',complete:'Færdig ✓',done:'Færdig',statDone:'Fuldført',statTotal:'Total',statPct:'Rate',bestStreak:'Bedste Stribe',bestDay:'Bedste Dag',progressTitle:'Fremgang',progressSub:'Dine måls udvikling',histTitle:'Historie',histSub:'Alle dine records',achTitle:'Præstationer',achSub:'Dine records og medaljer',setTitle:'Indstillinger',setSub:'Tilpas din oplevelse',filterFrom:'Fra',filterTo:'Til',filterBtn:'Filtrer',filterReset:'Alle',noHist:'Ingen historie.',noRes:'Ingen resultater.',histDays:'dage',histPerfect:'perfekte dage',compWeek:'Denne uge',compLastWeek:'Sidste uge',compMonth:'Denne måned',compLastMonth:'Sidste måned',totalGoals:'Samlede Mål',totalDone:'Samlede Fuldført',globalChart:'Globalt Overblik',perGoalChart:'Per Mål',avgAccum:'Kumulativt gns.',avgAll:'Samlet gns.',colDone:'Fuldført',colMissed:'Resterende',emptyTitle:'Ingen mål',emptySub:'Tryk + for at starte!',locale:'da-DK',morning:'God morgen',afternoon:'God dag',evening:'God aften',allFilter:'Alle',activeFilter:'Aktive',doneFilter:'Færdige',archived:'Arkiveret',priorityHigh:'Høj',priorityMed:'Mellem',priorityLow:'Lav',chartLine:'Linje',chartDonut:'Donut',sProfile:'Profil',sAppearance:'Udseende',sGoals:'Mål',sData:'Data',sReset:'Nulstil fremgang',sDarkMode:'Mørkt tema',sAccent:'Accentfarve',sFont:'Skriftstørrelse',sSort:'Sortering',sShowArchived:'Vis arkiverede',sCelebrate:'Fejr 100%',sUsername:'Dit navn',langLbl:'Sprog',langSearch:'Søg sprog…',sSortDate:'Dato',sSortName:'Navn',sSortPriority:'Prioritet',sSortDone:'Færdige sidst',},
+  fi:{greeting:'Hyvää huomenta,',appName:'Progressa',daily:'Päivittäiset',weekly:'Viikoittaiset',monthly:'Kuukausittaiset',yearly:'Vuosittaiset',navGoals:'Tavoitteet',navProgress:'Edistyminen',navHistory:'Historia',navAch:'Saavutukset',navSettings:'Asetukset',add:'Lisää',complete:'Valmis ✓',done:'Valmis',statDone:'Suoritettu',statTotal:'Yhteensä',statPct:'Osuus',bestStreak:'Paras Putki',bestDay:'Paras Päivä',progressTitle:'Edistyminen',progressSub:'Tavoitteidesi kehitys',histTitle:'Historia',histSub:'Kaikki tietueesi',achTitle:'Saavutukset',achSub:'Ennätykset ja mitalit',setTitle:'Asetukset',setSub:'Mukauta kokemustasi',filterFrom:'Mistä',filterTo:'Mihin',filterBtn:'Suodata',filterReset:'Kaikki',noHist:'Ei historiaa.',noRes:'Ei tuloksia.',histDays:'päivää',histPerfect:'täydellistä päivää',compWeek:'Tällä viikolla',compLastWeek:'Viime viikolla',compMonth:'Tässä kuussa',compLastMonth:'Viime kuussa',totalGoals:'Tavoitteita yhteensä',totalDone:'Suoritettuja yhteensä',globalChart:'Yleiskatsaus',perGoalChart:'Tavoitteittain',avgAccum:'Kumulatiivinen ka.',avgAll:'Yleinen ka.',colDone:'Suoritettu',colMissed:'Jäljellä',emptyTitle:'Ei tavoitteita',emptySub:'Paina + aloittaaksesi!',locale:'fi-FI',morning:'Hyvää huomenta',afternoon:'Hyvää päivää',evening:'Hyvää iltaa',allFilter:'Kaikki',activeFilter:'Aktiiviset',doneFilter:'Valmis',archived:'Arkistoitu',priorityHigh:'Korkea',priorityMed:'Keski',priorityLow:'Matala',chartLine:'Viiva',chartDonut:'Donitsi',sProfile:'Profiili',sAppearance:'Ulkoasu',sGoals:'Tavoitteet',sData:'Tiedot',sReset:'Nollaa edistyminen',sDarkMode:'Tumma tila',sAccent:'Korostusväri',sFont:'Fonttikoko',sSort:'Lajittelu',sShowArchived:'Näytä arkistoidut',sCelebrate:'Juhli 100%',sUsername:'Nimesi',langLbl:'Kieli',langSearch:'Etsi kieltä…',sSortDate:'Päivämäärä',sSortName:'Nimi',sSortPriority:'Prioriteetti',sSortDone:'Valmis viimeisenä',},
+  cs:{greeting:'Dobré ráno,',appName:'Progressa',daily:'Denní',weekly:'Týdenní',monthly:'Měsíční',yearly:'Roční',navGoals:'Cíle',navProgress:'Pokrok',navHistory:'Historie',navAch:'Úspěchy',navSettings:'Nastavení',add:'Přidat',complete:'Hotovo ✓',done:'Hotovo',statDone:'Dokončeno',statTotal:'Celkem',statPct:'Procento',bestStreak:'Nejlepší série',bestDay:'Nejlepší den',progressTitle:'Pokrok',progressSub:'Vývoj tvých cílů',histTitle:'Historie',histSub:'Všechny záznamy',achTitle:'Úspěchy',achSub:'Rekordy a medaile',setTitle:'Nastavení',setSub:'Přizpůsob si zážitek',filterFrom:'Od',filterTo:'Do',filterBtn:'Filtrovat',filterReset:'Vše',noHist:'Žádná historie.',noRes:'Žádné výsledky.',histDays:'dní',histPerfect:'perfektních dní',compWeek:'Tento týden',compLastWeek:'Minulý týden',compMonth:'Tento měsíc',compLastMonth:'Minulý měsíc',totalGoals:'Celkem cílů',totalDone:'Celkem dokončeno',globalChart:'Globální přehled',perGoalChart:'Na cíl',avgAccum:'Kumulativní prům.',avgAll:'Celkový prům.',colDone:'Dokončeno',colMissed:'Zbývá',emptyTitle:'Žádné cíle',emptySub:'Klepni + pro začátek!',locale:'cs-CZ',morning:'Dobré ráno',afternoon:'Dobrý den',evening:'Dobrý večer',allFilter:'Vše',activeFilter:'Aktivní',doneFilter:'Hotovo',archived:'Archivováno',priorityHigh:'Vysoká',priorityMed:'Střední',priorityLow:'Nízká',chartLine:'Čára',chartDonut:'Kobliha',sProfile:'Profil',sAppearance:'Vzhled',sGoals:'Cíle',sData:'Data',sReset:'Resetovat pokrok',sDarkMode:'Tmavý režim',sAccent:'Hlavní barva',sFont:'Velikost písma',sSort:'Řazení',sShowArchived:'Zobrazit archiv',sCelebrate:'Slavit 100%',sUsername:'Tvé jméno',langLbl:'Jazyk',langSearch:'Hledat jazyk…',sSortDate:'Datum',sSortName:'Název',sSortPriority:'Priorita',sSortDone:'Hotovo nakonec',},
+  ro:{greeting:'Bună dimineața,',appName:'Progressa',daily:'Zilnice',weekly:'Săptămânale',monthly:'Lunare',yearly:'Anuale',navGoals:'Obiective',navProgress:'Progres',navHistory:'Istoric',navAch:'Realizări',navSettings:'Setări',add:'Adaugă',complete:'Gata ✓',done:'Gata',statDone:'Completat',statTotal:'Total',statPct:'Rată',bestStreak:'Cea mai bună serie',bestDay:'Cea mai bună zi',progressTitle:'Progres',progressSub:'Evoluția obiectivelor tale',histTitle:'Istoric',histSub:'Toate înregistrările tale',achTitle:'Realizări',achSub:'Recordurile și medaliile tale',setTitle:'Setări',setSub:'Personalizează-ți experiența',filterFrom:'De la',filterTo:'Până la',filterBtn:'Filtrează',filterReset:'Tot',noHist:'Fără istoric.',noRes:'Fără rezultate.',histDays:'zile',histPerfect:'zile perfecte',compWeek:'Săptămâna aceasta',compLastWeek:'Săptămâna trecută',compMonth:'Luna aceasta',compLastMonth:'Luna trecută',totalGoals:'Total Obiective',totalDone:'Total Completat',globalChart:'Vedere Globală',perGoalChart:'Per Obiectiv',avgAccum:'Medie cumulativă',avgAll:'Medie generală',colDone:'Completat',colMissed:'Rămas',emptyTitle:'Fără obiective',emptySub:'Atinge + pentru a începe!',locale:'ro-RO',morning:'Bună dimineața',afternoon:'Bună ziua',evening:'Bună seara',allFilter:'Toate',activeFilter:'Active',doneFilter:'Gata',archived:'Arhivat',priorityHigh:'Mare',priorityMed:'Medie',priorityLow:'Mică',chartLine:'Linie',chartDonut:'Gogoașă',sProfile:'Profil',sAppearance:'Aspect',sGoals:'Obiective',sData:'Date',sReset:'Resetează progresul',sDarkMode:'Mod întunecat',sAccent:'Culoare principală',sFont:'Dimensiune font',sSort:'Sortare',sShowArchived:'Arată arhivate',sCelebrate:'Sărbătorește 100%',sUsername:'Numele tău',langLbl:'Limbă',langSearch:'Caută limbă…',sSortDate:'Dată',sSortName:'Nume',sSortPriority:'Prioritate',sSortDone:'Gata ultimele',},
+  hu:{greeting:'Jó reggelt,',appName:'Progressa',daily:'Napi',weekly:'Heti',monthly:'Havi',yearly:'Éves',navGoals:'Célok',navProgress:'Haladás',navHistory:'Előzmények',navAch:'Teljesítmények',navSettings:'Beállítások',add:'Hozzáad',complete:'Kész ✓',done:'Kész',statDone:'Teljesített',statTotal:'Összesen',statPct:'Arány',bestStreak:'Legjobb sorozat',bestDay:'Legjobb nap',progressTitle:'Haladás',progressSub:'Céljaid fejlődése',histTitle:'Előzmények',histSub:'Összes rekordod',achTitle:'Teljesítmények',achSub:'Rekordok és érmek',setTitle:'Beállítások',setSub:'Személyre szabás',filterFrom:'Tól',filterTo:'Ig',filterBtn:'Szűrés',filterReset:'Mind',noHist:'Nincs előzmény.',noRes:'Nincs eredmény.',histDays:'nap',histPerfect:'tökéletes nap',compWeek:'Ezen a héten',compLastWeek:'Múlt héten',compMonth:'Ebben a hónapban',compLastMonth:'Múlt hónapban',totalGoals:'Összes cél',totalDone:'Összes teljesített',globalChart:'Globális áttekintés',perGoalChart:'Célonként',avgAccum:'Kumulatív átlag',avgAll:'Általános átlag',colDone:'Teljesített',colMissed:'Hátralévő',emptyTitle:'Nincs cél',emptySub:'Érintsd a + gombot a kezdéshez!',locale:'hu-HU',morning:'Jó reggelt',afternoon:'Jó napot',evening:'Jó estét',allFilter:'Mind',activeFilter:'Aktív',doneFilter:'Kész',archived:'Archivált',priorityHigh:'Magas',priorityMed:'Közepes',priorityLow:'Alacsony',chartLine:'Vonal',chartDonut:'Fánk',sProfile:'Profil',sAppearance:'Megjelenés',sGoals:'Célok',sData:'Adatok',sReset:'Haladás visszaállítása',sDarkMode:'Sötét mód',sAccent:'Kiemelési szín',sFont:'Betűméret',sSort:'Rendezés',sShowArchived:'Archivált megjelenítése',sCelebrate:'100% ünneplése',sUsername:'A neved',langLbl:'Nyelv',langSearch:'Nyelv keresése…',sSortDate:'Dátum',sSortName:'Név',sSortPriority:'Prioritás',sSortDone:'Kész utoljára',},
+  el:{greeting:'Καλημέρα,',appName:'Progressa',daily:'Καθημερινοί',weekly:'Εβδομαδιαίοι',monthly:'Μηνιαίοι',yearly:'Ετήσιοι',navGoals:'Στόχοι',navProgress:'Πρόοδος',navHistory:'Ιστορικό',navAch:'Επιτεύγματα',navSettings:'Ρυθμίσεις',add:'Προσθήκη',complete:'Έτοιμο ✓',done:'Έτοιμο',statDone:'Ολοκληρώθηκε',statTotal:'Σύνολο',statPct:'Ποσοστό',bestStreak:'Καλύτερη Σειρά',bestDay:'Καλύτερη Μέρα',progressTitle:'Πρόοδος',progressSub:'Εξέλιξη των στόχων σου',histTitle:'Ιστορικό',histSub:'Όλα τα αρχεία σου',achTitle:'Επιτεύγματα',achSub:'Ρεκόρ και μετάλλια',setTitle:'Ρυθμίσεις',setSub:'Προσαρμογή εμπειρίας',filterFrom:'Από',filterTo:'Έως',filterBtn:'Φίλτρο',filterReset:'Όλα',noHist:'Χωρίς ιστορικό.',noRes:'Χωρίς αποτελέσματα.',histDays:'μέρες',histPerfect:'τέλειες μέρες',compWeek:'Αυτή την εβδομάδα',compLastWeek:'Περασμένη εβδομάδα',compMonth:'Αυτόν τον μήνα',compLastMonth:'Περασμένο μήνα',totalGoals:'Σύνολο Στόχων',totalDone:'Σύνολο Ολοκλ.',globalChart:'Γενική Εικόνα',perGoalChart:'Ανά Στόχο',avgAccum:'Σωρευτικός μέσος',avgAll:'Γενικός μέσος',colDone:'Ολοκληρώθηκε',colMissed:'Εναπομένον',emptyTitle:'Χωρίς στόχους',emptySub:'Πάτα + για να ξεκινήσεις!',locale:'el-GR',morning:'Καλημέρα',afternoon:'Καλησπέρα',evening:'Καλησπέρα',allFilter:'Όλα',activeFilter:'Ενεργά',doneFilter:'Έτοιμα',archived:'Αρχειοθετήθηκε',priorityHigh:'Υψηλή',priorityMed:'Μεσαία',priorityLow:'Χαμηλή',chartLine:'Γραμμή',chartDonut:'Ντόνατ',sProfile:'Προφίλ',sAppearance:'Εμφάνιση',sGoals:'Στόχοι',sData:'Δεδομένα',sReset:'Επαναφορά',sDarkMode:'Σκοτεινή Λειτουργία',sAccent:'Κύριο Χρώμα',sFont:'Μέγεθος Γραμματοσειράς',sSort:'Ταξινόμηση',sShowArchived:'Εμφάνιση αρχειοθ.',sCelebrate:'Γιορτή 100%',sUsername:'Το όνομά σου',langLbl:'Γλώσσα',langSearch:'Αναζήτηση γλώσσας…',sSortDate:'Ημερομηνία',sSortName:'Όνομα',sSortPriority:'Προτεραιότητα',sSortDone:'Έτοιμα τελευταία',},
+  ms:{greeting:'Selamat pagi,',appName:'Progressa',daily:'Harian',weekly:'Mingguan',monthly:'Bulanan',yearly:'Tahunan',navGoals:'Matlamat',navProgress:'Kemajuan',navHistory:'Sejarah',navAch:'Pencapaian',navSettings:'Tetapan',add:'Tambah',complete:'Selesai ✓',done:'Selesai',statDone:'Diselesaikan',statTotal:'Jumlah',statPct:'Kadar',bestStreak:'Rentetan Terbaik',bestDay:'Hari Terbaik',progressTitle:'Kemajuan',progressSub:'Perkembangan matlamat',histTitle:'Sejarah',histSub:'Semua rekod anda',achTitle:'Pencapaian',achSub:'Rekod dan pingat',setTitle:'Tetapan',setSub:'Suaikan pengalaman anda',filterFrom:'Dari',filterTo:'Hingga',filterBtn:'Tapis',filterReset:'Semua',noHist:'Tiada sejarah.',noRes:'Tiada keputusan.',histDays:'hari',histPerfect:'hari sempurna',compWeek:'Minggu ini',compLastWeek:'Minggu lepas',compMonth:'Bulan ini',compLastMonth:'Bulan lepas',totalGoals:'Jumlah Matlamat',totalDone:'Jumlah Selesai',globalChart:'Gambaran Global',perGoalChart:'Per Matlamat',avgAccum:'Purata kumulatif',avgAll:'Purata keseluruhan',colDone:'Selesai',colMissed:'Berbaki',emptyTitle:'Tiada matlamat',emptySub:'Ketik + untuk bermula!',locale:'ms-MY',morning:'Selamat pagi',afternoon:'Selamat tengahari',evening:'Selamat malam',allFilter:'Semua',activeFilter:'Aktif',doneFilter:'Selesai',archived:'Diarkibkan',priorityHigh:'Tinggi',priorityMed:'Sederhana',priorityLow:'Rendah',chartLine:'Garis',chartDonut:'Donat',sProfile:'Profil',sAppearance:'Penampilan',sGoals:'Matlamat',sData:'Data',sReset:'Tetapkan Semula',sDarkMode:'Mod Gelap',sAccent:'Warna Utama',sFont:'Saiz Fon',sSort:'Susun',sShowArchived:'Tunjuk arkib',sCelebrate:'Raikan 100%',sUsername:'Nama anda',langLbl:'Bahasa',langSearch:'Cari bahasa…',sSortDate:'Tarikh',sSortName:'Nama',sSortPriority:'Keutamaan',sSortDone:'Selesai terakhir',},
+  th:{greeting:'อรุณสวัสดิ์,',appName:'Progressa',daily:'รายวัน',weekly:'รายสัปดาห์',monthly:'รายเดือน',yearly:'รายปี',navGoals:'เป้าหมาย',navProgress:'ความคืบหน้า',navHistory:'ประวัติ',navAch:'ความสำเร็จ',navSettings:'การตั้งค่า',add:'เพิ่ม',complete:'เสร็จ ✓',done:'เสร็จ',statDone:'เสร็จสิ้น',statTotal:'รวม',statPct:'อัตรา',bestStreak:'สายที่ดีที่สุด',bestDay:'วันที่ดีที่สุด',progressTitle:'ความคืบหน้า',progressSub:'การพัฒนาของเป้าหมาย',histTitle:'ประวัติ',histSub:'บันทึกทั้งหมด',achTitle:'ความสำเร็จ',achSub:'สถิติและเหรียญ',setTitle:'การตั้งค่า',setSub:'ปรับแต่งประสบการณ์',filterFrom:'จาก',filterTo:'ถึง',filterBtn:'กรอง',filterReset:'ทั้งหมด',noHist:'ไม่มีประวัติ',noRes:'ไม่มีผลลัพธ์',histDays:'วัน',histPerfect:'วันที่สมบูรณ์',compWeek:'สัปดาห์นี้',compLastWeek:'สัปดาห์ที่แล้ว',compMonth:'เดือนนี้',compLastMonth:'เดือนที่แล้ว',totalGoals:'เป้าหมายทั้งหมด',totalDone:'เสร็จสิ้นทั้งหมด',globalChart:'ภาพรวมทั่วไป',perGoalChart:'ต่อเป้าหมาย',avgAccum:'ค่าเฉลี่ยสะสม',avgAll:'ค่าเฉลี่ยรวม',colDone:'เสร็จสิ้น',colMissed:'เหลือ',emptyTitle:'ไม่มีเป้าหมาย',emptySub:'แตะ + เพื่อเริ่ม!',locale:'th-TH',morning:'อรุณสวัสดิ์',afternoon:'สวัสดีตอนบ่าย',evening:'สวัสดีตอนเย็น',allFilter:'ทั้งหมด',activeFilter:'กำลังดำเนิน',doneFilter:'เสร็จ',archived:'เก็บถาวร',priorityHigh:'สูง',priorityMed:'ปานกลาง',priorityLow:'ต่ำ',chartLine:'เส้น',chartDonut:'โดนัท',sProfile:'โปรไฟล์',sAppearance:'รูปลักษณ์',sGoals:'เป้าหมาย',sData:'ข้อมูล',sReset:'รีเซ็ตความคืบหน้า',sDarkMode:'โหมดมืด',sAccent:'สีหลัก',sFont:'ขนาดตัวอักษร',sSort:'เรียงลำดับ',sShowArchived:'แสดงที่เก็บถาวร',sCelebrate:'ฉลอง 100%',sUsername:'ชื่อของคุณ',langLbl:'ภาษา',langSearch:'ค้นหาภาษา…',sSortDate:'วันที่',sSortName:'ชื่อ',sSortPriority:'ลำดับความสำคัญ',sSortDone:'เสร็จท้าย',},
+  tl:{greeting:'Magandang umaga,',appName:'Progressa',daily:'Araw-araw',weekly:'Linggu-linggo',monthly:'Buwanan',yearly:'Taunan',navGoals:'Layunin',navProgress:'Pag-unlad',navHistory:'Kasaysayan',navAch:'Tagumpay',navSettings:'Mga Setting',add:'Idagdag',complete:'Tapos ✓',done:'Tapos',statDone:'Natapos',statTotal:'Kabuuan',statPct:'Rate',bestStreak:'Pinakamahaba',bestDay:'Pinakamahusay na Araw',progressTitle:'Pag-unlad',progressSub:'Pag-unlad ng iyong mga layunin',histTitle:'Kasaysayan',histSub:'Lahat ng iyong rekord',achTitle:'Tagumpay',achSub:'Mga rekord at medalya',setTitle:'Mga Setting',setSub:'I-customize ang iyong karanasan',filterFrom:'Mula',filterTo:'Hanggang',filterBtn:'I-filter',filterReset:'Lahat',noHist:'Walang kasaysayan.',noRes:'Walang resulta.',histDays:'araw',histPerfect:'perpektong araw',compWeek:'Linggong ito',compLastWeek:'Nakaraang linggo',compMonth:'Buwang ito',compLastMonth:'Nakaraang buwan',totalGoals:'Kabuuang Layunin',totalDone:'Kabuuang Natapos',globalChart:'Pangkalahatang Tingin',perGoalChart:'Bawat Layunin',avgAccum:'Pinagsama-samang avg',avgAll:'Pangkalahatang avg',colDone:'Natapos',colMissed:'Natitira',emptyTitle:'Walang layunin',emptySub:'Pindutin ang + para magsimula!',locale:'fil-PH',morning:'Magandang umaga',afternoon:'Magandang tanghali',evening:'Magandang gabi',allFilter:'Lahat',activeFilter:'Aktibo',doneFilter:'Tapos',archived:'Naka-archive',priorityHigh:'Mataas',priorityMed:'Katamtaman',priorityLow:'Mababa',chartLine:'Linya',chartDonut:'Donut',sProfile:'Profile',sAppearance:'Hitsura',sGoals:'Layunin',sData:'Data',sReset:'I-reset ang progreso',sDarkMode:'Dark Mode',sAccent:'Pangunahing kulay',sFont:'Laki ng font',sSort:'Pag-aayos',sShowArchived:'Ipakita ang archive',sCelebrate:'Ipagdiwang ang 100%',sUsername:'Ang iyong pangalan',langLbl:'Wika',langSearch:'Maghanap ng wika…',sSortDate:'Petsa',sSortName:'Pangalan',sSortPriority:'Priyoridad',sSortDone:'Tapos sa huli',},
+  af:{greeting:'Goeie môre,',appName:'Progressa',daily:'Daagliks',weekly:'Weekliks',monthly:'Maandeliks',yearly:'Jaarliks',navGoals:'Doelwitte',navProgress:'Vordering',navHistory:'Geskiedenis',navAch:'Prestasies',navSettings:'Instellings',add:'Voeg by',complete:'Klaar ✓',done:'Klaar',statDone:'Voltooi',statTotal:'Totaal',statPct:'Koers',bestStreak:'Beste Reeks',bestDay:'Beste Dag',progressTitle:'Vordering',progressSub:'Ontwikkeling van jou doelwitte',histTitle:'Geskiedenis',histSub:'Al jou rekords',achTitle:'Prestasies',achSub:'Jou rekords en medaljes',setTitle:'Instellings',setSub:'Pas jou ervaring aan',filterFrom:'Van',filterTo:'Tot',filterBtn:'Filter',filterReset:'Alles',noHist:'Geen geskiedenis.',noRes:'Geen resultate.',histDays:'dae',histPerfect:'perfekte dae',compWeek:'Hierdie week',compLastWeek:'Verlede week',compMonth:'Hierdie maand',compLastMonth:'Verlede maand',totalGoals:'Totale Doelwitte',totalDone:'Totale Voltooi',globalChart:'Globale Oorsig',perGoalChart:'Per Doelwit',avgAccum:'Kumulatiewe gem.',avgAll:'Algemene gem.',colDone:'Voltooi',colMissed:'Oorblywend',emptyTitle:'Geen doelwitte',emptySub:'Tik + om te begin!',locale:'af-ZA',morning:'Goeie môre',afternoon:'Goeie middag',evening:'Goeie naand',allFilter:'Alles',activeFilter:'Aktief',doneFilter:'Klaar',archived:'Geargiveer',priorityHigh:'Hoog',priorityMed:'Medium',priorityLow:'Laag',chartLine:'Lyn',chartDonut:'Donut',sProfile:'Profiel',sAppearance:'Voorkoms',sGoals:'Doelwitte',sData:'Data',sReset:'Vordering terugstel',sDarkMode:'Donker modus',sAccent:'Hooifarbe',sFont:'Lettergrootte',sSort:'Sortering',sShowArchived:'Wys geargiveer',sCelebrate:'Vier 100%',sUsername:'Jou naam',langLbl:'Taal',langSearch:'Soek taal…',sSortDate:'Datum',sSortName:'Naam',sSortPriority:'Prioriteit',sSortDone:'Klaar laaste',},
+  ca:{greeting:'Bon dia,',appName:'Progressa',daily:'Diaris',weekly:'Setmanals',monthly:'Mensuals',yearly:'Anuals',navGoals:'Objectius',navProgress:'Progrés',navHistory:'Historial',navAch:'Assoliments',navSettings:'Configuració',add:'Afegir',complete:'Fet ✓',done:'Fet',statDone:'Completat',statTotal:'Total',statPct:'Taxa',bestStreak:'Millor Ratxa',bestDay:'Millor Dia',progressTitle:'Progrés',progressSub:'Evolució dels teus objectius',histTitle:'Historial',histSub:'Tots els teus registres',achTitle:'Assoliments',achSub:'Els teus rècords i medalles',setTitle:'Configuració',setSub:'Personalitza la teva experiència',filterFrom:'Des de',filterTo:'Fins a',filterBtn:'Filtrar',filterReset:'Tot',noHist:'Sense historial.',noRes:'Sense resultats.',histDays:'dies',histPerfect:'dies perfectes',compWeek:'Aquesta setmana',compLastWeek:'Setmana passada',compMonth:'Aquest mes',compLastMonth:'Mes passat',totalGoals:'Total Objectius',totalDone:'Total Completat',globalChart:'Visió Global',perGoalChart:'Per Objectiu',avgAccum:'Mitjana acumulada',avgAll:'Mitjana general',colDone:'Completat',colMissed:'Restant',emptyTitle:'Sense objectius',emptySub:"Toca + per afegir el teu primer objectiu!",locale:'ca-ES',morning:'Bon dia',afternoon:'Bona tarda',evening:'Bona nit',allFilter:'Tots',activeFilter:'Actius',doneFilter:'Fets',archived:'Arxivat',priorityHigh:'Alta',priorityMed:'Mitjana',priorityLow:'Baixa',chartLine:'Línia',chartDonut:'Donut',sProfile:'Perfil',sAppearance:'Aparença',sGoals:'Objectius',sData:'Dades',sReset:'Reiniciar progrés',sDarkMode:'Mode Fosc',sAccent:'Color Principal',sFont:'Mida de Lletra',sSort:'Ordenació',sShowArchived:'Mostrar arxivats',sCelebrate:'Celebrar 100%',sUsername:'El teu nom',langLbl:'Idioma',langSearch:'Cercar idioma…',sSortDate:'Data',sSortName:'Nom',sSortPriority:'Prioritat',sSortDone:'Fets últims',},
+};
+function tr(k){const l=T[lang]||T.en;return l[k]!==undefined?l[k]:(T.en[k]||k);}
+
+// ── STATE ──
+const SK='obj_v6';
+let state=load();
+let lang=state.s?.lang||'pt';
+let currentTab='daily';
+let chartMode='line';
+let activeFilter='all';
+let editingId=null;
+let selectedColor=null;
+let fFrom=null,fTo=null;
+let pendingReset=null;
+let lastCelebrated={};
+const charts={};
+
+function load(){
+  try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r);}catch(e){}
+  return{goals:[],history:[],s:{lang:'pt',dark:false,accent:'#1db954',fontSize:'medium',username:'',sort:'created',showArchived:false,celebrate:true}};
+}
+function save(){localStorage.setItem(SK,JSON.stringify(state));}
+function cfg(k){return state.s?.[k];}
+
+// dates
+function td(){return new Date().toISOString().slice(0,10);}
+function wk(){const d=new Date(),j=new Date(d.getFullYear(),0,1),w=Math.ceil(((d-j)/86400000+j.getDay()+1)/7);return`${d.getFullYear()}-W${w}`;}
+function mk(){const d=new Date();return`${d.getFullYear()}-M${d.getMonth()+1}`;}
+function yk(){return`${new Date().getFullYear()}`;}
+function key(t){return t==='daily'?td():t==='weekly'?wk():t==='monthly'?mk():yk();}
+function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString(tr('locale'),{weekday:'short',day:'numeric',month:'short'});}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+const TYPE_COLS={daily:'#4a6cf7',weekly:'#1db954',monthly:'#f59e0b',yearly:'#a855f7'};
+const GOAL_COLS=['#4a6cf7','#1db954','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316','#ec4899','#10b981','#6366f1'];
+const TYPE_ICONS={daily:'☀️',weekly:'📅',monthly:'🗓',yearly:'📆'};
+const TYPE_ICON_BG={daily:'#eef2ff',weekly:'#dcfce7',monthly:'#fef3c7',yearly:'#f3e8ff'};
+
+// ── PAGES ──
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const navBtn=document.getElementById('nav-'+name);
+  if(navBtn)navBtn.classList.add('active');
+  const fab=document.getElementById('fab');
+  if(name==='goals'){fab.style.display='flex';}
+  else{fab.style.display='none';}
+  // show/hide header tabs
+  const typeTabsWrap=document.getElementById('type-tabs');
+  typeTabsWrap.style.display=name==='goals'?'flex':'none';
+  if(name==='progress'){renderProgress();}
+  if(name==='history'){renderHistory();}
+  if(name==='achievements'){renderAchievements();}
+  if(name==='settings'){buildLangGrid();}
+}
+
+// ── TABS ──
+function switchTab(type,btn){
+  currentTab=type;
+  document.querySelectorAll('.type-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderGoals();
+}
+
+// ── RENDER GOALS ──
+function renderGoals(){
+  const type=currentTab;
+  const col=TYPE_COLS[type];
+  const allGoals=state.goals.filter(g=>g.type===type);
+  const showArch=cfg('showArchived');
+  let goals=allGoals.filter(g=>showArch?true:!g.archived);
+  const sortBy=cfg('sort')||'created';
+  const pOrd={alta:0,media:1,baixa:2};
+  if(sortBy==='name')goals.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(sortBy==='priority')goals.sort((a,b)=>(pOrd[a.priority]||1)-(pOrd[b.priority]||1));
+  else if(sortBy==='done'){const k=key(type);goals.sort((a,b)=>{const ad=a.completions&&a.completions[k]?1:0,bd=b.completions&&b.completions[k]?1:0;return ad-bd;});}
+  const k=key(type);
+  const done=goals.filter(g=>g.completions&&g.completions[k]).length;
+  const total=goals.length;
+  const pct=total?Math.round(done/total*100):0;
+  if(total>0&&done===total&&cfg('celebrate'))triggerCelebrate(type);
+
+  // filter
+  let visible=goals;
+  if(activeFilter==='active')visible=goals.filter(g=>!(g.completions&&g.completions[k]));
+  else if(activeFilter==='done')visible=goals.filter(g=>!!(g.completions&&g.completions[k]));
+
+  const bestStrk=calcBestStreakType(type);
+
+  let html=`
+    <div class="stats-strip">
+      <div class="stat-pill" style="--pill-color:${col}"><div class="stat-num">${done}</div><div class="stat-lbl">${tr('statDone')}</div></div>
+      <div class="stat-pill" style="--pill-color:${col}"><div class="stat-num">${pct}%</div><div class="stat-lbl">${tr('statPct')}</div></div>
+      <div class="stat-pill" style="--pill-color:${col}"><div class="stat-num">${bestStrk}🔥</div><div class="stat-lbl">${tr('bestStreak')}</div></div>
+    </div>
+    <div class="progress-ring-wrap">
+      <svg class="ring-svg" width="64" height="64" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="26" fill="none" stroke="#eaedf2" stroke-width="7"/>
+        <circle cx="32" cy="32" r="26" fill="none" stroke="${col}" stroke-width="7"
+          stroke-dasharray="${2*Math.PI*26}" stroke-dashoffset="${2*Math.PI*26*(1-pct/100)}"
+          stroke-linecap="round" transform="rotate(-90 32 32)" style="transition:stroke-dashoffset 0.6s ease"/>
+      </svg>
+      <div class="ring-info">
+        <div class="ring-pct">${pct}%</div>
+        <div class="ring-desc">${done} de ${total} ${tr('statDone').toLowerCase()}</div>
+        <div class="ring-bar-wrap"><div class="ring-bar" style="width:${pct}%;background:${col}"></div></div>
+      </div>
+    </div>
+    <div class="filter-strip">
+      ${['all','active','done'].map(f=>`<button class="chip ${activeFilter===f?'active':''}" style="--chip-color:${col}" onclick="setFilter('${f}')">${tr(f+'Filter')}</button>`).join('')}
+    </div>`;
+
+  if(!visible.length){
+    html+=`<div class="empty-state"><span class="empty-emoji">${TYPE_ICONS[type]}</span><div class="empty-title">${tr('emptyTitle')}</div><div class="empty-sub">${tr('emptySub')}</div></div>`;
+  } else {
+    html+=`<div class="goals-list">`;
+    visible.forEach((g,i)=>{
+      const isDone=g.completions&&g.completions[k];
+      const gCol=g.color||col;
+      const iconBg=g.color?g.color+'22':(TYPE_ICON_BG[type]);
+      const pBadge=g.priority&&g.priority!=='media'?`<span class="priority-tag p-${g.priority}">${tr('priority'+g.priority.charAt(0).toUpperCase()+g.priority.slice(1))}</span>`:'';
+      html+=`<div class="goal-card ${isDone?'done':''} ${g.archived?'archived':''}" style="animation-delay:${i*0.04}s">
+        <div class="goal-icon" style="background:${iconBg}">${g.icon||TYPE_ICONS[type]}</div>
+        <div class="goal-card-body">
+          <div class="goal-card-name">${esc(g.name)}</div>
+          ${g.note?`<div class="goal-card-note">${esc(g.note)}</div>`:''}
+          <div class="goal-card-meta">${pBadge}${g.archived?`<span class="priority-tag" style="background:#f3f4f6;color:#9ca3af">${tr('archived')}</span>`:''}</div>
+        </div>
+        <div class="goal-card-actions">
+          <button class="icon-btn" onclick="openEdit('${g.id}')">✏️</button>
+          <button class="icon-btn del" data-id="${g.id}" onclick="delGoal(this.dataset.id)">✕</button>
+        </div>
+        <button class="complete-btn ${isDone?'done-btn':'undone'}" style="${isDone?'':'--btn-color:'+gCol}" data-id="${g.id}" onclick="toggle(this.dataset.id)">${isDone?'✓':tr('complete')}</button>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  document.getElementById('goals-content').innerHTML=html;
+  autoHistory();
+}
+
+function setFilter(f){activeFilter=f;renderGoals();}
+
+function toggle(id){
+  const g=state.goals.find(g=>g.id===id);if(!g)return;
+  const k=key(g.type);if(!g.completions)g.completions={};
+  g.completions[k]?delete g.completions[k]:(g.completions[k]=true);
+  save();if(g.type===currentTab)renderGoals();autoHistory();
+}
+let pendingDelId=null;
+function delGoal(id){
+  const g=state.goals.find(g=>g.id===id);if(!g)return;
+  pendingDelId=id;
+  document.getElementById('del-confirm-title').textContent='Apagar "'+g.name+'"?';
+  document.getElementById('del-confirm-msg').textContent='Esta ação não pode ser desfeita.';
+  document.getElementById('del-confirm-overlay').style.display='flex';
+}
+function closeDelConfirm(){document.getElementById('del-confirm-overlay').style.display='none';pendingDelId=null;}
+function confirmDel(){
+  if(!pendingDelId)return;
+  state.goals=state.goals.filter(x=>x.id!==pendingDelId);
+  save();closeDelConfirm();renderGoals();autoHistory();
+}
+function archGoal(id){const g=state.goals.find(g=>g.id===id);if(!g)return;g.archived=!g.archived;save();renderGoals();}
+function dupeGoal(id){const g=state.goals.find(g=>g.id===id);if(!g)return;state.goals.push({...g,id:Date.now().toString(),name:g.name+' (2)',completions:{},createdAt:td()});save();renderGoals();}
+
+function autoHistory(){
+  const today=td();
+  let e=state.history.find(h=>h.date===today);
+  if(!e){e={date:today};state.history.push(e);}
+  ['daily','weekly','monthly','yearly'].forEach(t=>{
+    const g=state.goals.filter(g=>g.type===t);
+    e[t+'T']=g.length;e[t+'D']=g.filter(g=>g.completions&&g.completions[key(t)]).length;
+  });
+  save();
+}
+
+function calcStreakGlobal(){
+  const s=[...state.history].sort((a,b)=>b.date.localeCompare(a.date));
+  let st=0,prev=null;
+  for(const h of s){
+    const any=['daily','weekly','monthly','yearly'].some(t=>h[t+'T']>0);
+    const all=['daily','weekly','monthly','yearly'].every(t=>!h[t+'T']||h[t+'D']===h[t+'T']);
+    if(!any||!all)break;
+    if(prev&&(new Date(prev)-new Date(h.date))/86400000>1)break;
+    st++;prev=h.date;
+  }
+  return st;
+}
+function calcBestStreakType(type){
+  const s=[...state.history].sort((a,b)=>a.date.localeCompare(b.date));
+  let best=0,cur=0,prev=null;
+  for(const h of s){
+    const ok=h[type+'T']>0&&h[type+'D']===h[type+'T'];
+    if(ok&&(!prev||(new Date(h.date)-new Date(prev))/86400000===1)){cur++;best=Math.max(best,cur);}
+    else if(ok){cur=1;best=Math.max(best,cur);}
+    else cur=0;
+    prev=h.date;
+  }
+  return best;
+}
+
+// celebrate
+function triggerCelebrate(type){
+  const k=key(type);
+  if(lastCelebrated[type]===k)return;
+  lastCelebrated[type]=k;
+  const emojis=['🎉','🏆','⭐','🌟','🎊'];
+  document.getElementById('cel-emoji').textContent=emojis[Math.floor(Math.random()*emojis.length)];
+  document.getElementById('cel-text').textContent='100% '+tr('statPct')+'!';
+  const wrap=document.getElementById('celebrate-wrap');
+  wrap.style.display='flex';
+  setTimeout(()=>wrap.style.display='none',3000);
+}
+
+// ── MODAL ──
+function buildTypeChips(){
+  const chips=document.getElementById('type-chips');
+  chips.innerHTML=['daily','weekly','monthly','yearly'].map(t=>`<button class="type-chip ${t===currentModalType?'sel':''}" style="${t===currentModalType?'background:'+TYPE_COLS[t]+';border-color:'+TYPE_COLS[t]:''}" onclick="selModalType('${t}')">${TYPE_ICONS[t]} ${tr(t)}</button>`).join('');
+}
+let currentModalType='daily';
+function selModalType(t){currentModalType=t;buildTypeChips();}
+function buildColorRow(){
+  const row=document.getElementById('color-row');
+  row.innerHTML=GOAL_COLS.map(c=>`<div class="color-d ${selectedColor===c?'active':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join('');
+}
+function pickColor(c){selectedColor=c;buildColorRow();}
+
+function openModal(type){
+  editingId=null;currentModalType=type||currentTab;selectedColor=null;
+  document.getElementById('g-name').value='';
+  document.getElementById('g-note').value='';
+  document.getElementById('g-priority').value='media';
+  document.getElementById('m-title').textContent='Novo Objetivo';
+  buildTypeChips();buildColorRow();
+  document.getElementById('modal').style.display='flex';
+  setTimeout(()=>document.getElementById('g-name').focus(),100);
+}
+function openEdit(id){
+  const g=state.goals.find(g=>g.id===id);if(!g)return;
+  editingId=id;currentModalType=g.type;selectedColor=g.color||null;
+  document.getElementById('g-name').value=g.name;
+  document.getElementById('g-note').value=g.note||'';
+  document.getElementById('g-priority').value=g.priority||'media';
+  document.getElementById('m-title').textContent='Editar Objetivo';
+  buildTypeChips();buildColorRow();
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editingId=null;}
+function closeModalOut(e){if(e.target.id==='modal')closeModal();}
+function saveGoal(){
+  const name=document.getElementById('g-name').value.trim();
+  if(!name){document.getElementById('g-name').focus();return;}
+  if(editingId){
+    const g=state.goals.find(g=>g.id===editingId);
+    if(g){g.name=name;g.note=document.getElementById('g-note').value.trim();g.priority=document.getElementById('g-priority').value;g.color=selectedColor||g.color||null;g.type=currentModalType;}
+  } else {
+    state.goals.push({id:Date.now().toString(),type:currentModalType,name,note:document.getElementById('g-note').value.trim(),priority:document.getElementById('g-priority').value,color:selectedColor||null,completions:{},createdAt:td()});
+  }
+  save();closeModal();
+  if(currentModalType===currentTab||editingId)renderGoals();
+  else{currentTab=currentModalType;document.querySelectorAll('.type-tab').forEach((t,i)=>{const types=['daily','weekly','monthly','yearly'];t.classList.toggle('active',types[i]===currentTab);});renderGoals();}
+  autoHistory();
+}
+
+// ── PROGRESS ──
+function setChartMode(mode,btn){chartMode=mode;document.querySelectorAll('.chart-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderProgress();}
+function destroyCharts(){Object.keys(charts).forEach(k=>{if(charts[k]){charts[k].destroy();charts[k]=null;}});}
+
+function goalCumAvg(g){
+  const start=g.createdAt||td(),today=td();
+  const dates=[];let d=new Date(start+'T12:00:00');const end=new Date(today+'T12:00:00');
+  while(d<=end){dates.push(d.toISOString().slice(0,10));d=new Date(d);d.setDate(d.getDate()+1);}
+  let dc=0;
+  return dates.map((date,i)=>{if(g.completions&&g.completions[date])dc++;return{date,avg:Math.round(dc/(i+1)*100)};});
+}
+function buildSeries(goals){
+  const allD=new Set(),sm={};
+  goals.forEach(g=>{const pts=goalCumAvg(g);sm[g.id]=pts;pts.forEach(p=>allD.add(p.date));});
+  const axis=[...allD].sort();
+  const series=goals.map(g=>{
+    const pm={};sm[g.id].forEach(p=>pm[p.date]=p.avg);
+    let last=null;
+    return axis.map(date=>{if(date<(g.createdAt||td()))return null;if(pm[date]!==undefined)last=pm[date];return last;});
+  });
+  return{axis,series};
+}
+
+function renderComparison(){
+  const el=document.getElementById('comparison-strip');
+  const today=new Date();
+  const thisMon=new Date(today);thisMon.setDate(today.getDate()-((today.getDay()+6)%7));thisMon.setHours(0,0,0,0);
+  const lastMon=new Date(thisMon);lastMon.setDate(thisMon.getDate()-7);
+  let tw=0,twt=0,lw=0,lwt=0;
+  state.history.forEach(h=>{const d=new Date(h.date+'T12:00:00');if(d>=thisMon){tw+=h.dailyD||0;twt+=h.dailyT||0;}else if(d>=lastMon&&d<thisMon){lw+=h.dailyD||0;lwt+=h.dailyT||0;}});
+  const twp=twt?Math.round(tw/twt*100):null,lwp=lwt?Math.round(lw/lwt*100):null;
+  let totalDone=0;state.goals.forEach(g=>{if(g.completions)totalDone+=Object.keys(g.completions).length;});
+  const totalGoals=state.goals.filter(g=>!g.archived).length;
+  const wDiff=twp!==null&&lwp!==null?twp-lwp:null;
+  el.innerHTML=`
+    <div class="comp-card"><div class="comp-label">${tr('compWeek')}</div><div class="comp-value">${twp!==null?twp+'%':'—'}</div><div class="comp-change ${wDiff===null?'neutral':wDiff>=0?'up':'down'}">${wDiff===null?'Primeira semana':wDiff>=0?'▲ '+Math.abs(wDiff)+'% vs '+lwp+'%':'▼ '+Math.abs(wDiff)+'% vs '+lwp+'%'}</div></div>
+    <div class="comp-card"><div class="comp-label">${tr('totalGoals')}</div><div class="comp-value" style="color:var(--accent)">${totalGoals}</div><div class="comp-change neutral">${totalDone} ${tr('totalDone').toLowerCase()}</div></div>`;
+}
+
+function renderProgress(){
+  destroyCharts();renderComparison();
+  const body=document.getElementById('progress-charts');
+  const types=['daily','weekly','monthly','yearly'];
+  const tNames={daily:tr('daily'),weekly:tr('weekly'),monthly:tr('monthly'),yearly:tr('yearly')};
+  const chartOpts=()=>({plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f0f2f5'},ticks:{font:{size:9},color:'#9ca3af',maxTicksLimit:7}},y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#9ca3af',font:{size:9}},grid:{color:'#f0f2f5'}}},animation:{duration:300},interaction:{mode:'index',intersect:false}});
+  let html='';
+  types.forEach(type=>{
+    const goals=state.goals.filter(g=>g.type===type&&!g.archived);
+    const col=TYPE_COLS[type];
+    html+=`<div class="chart-section"><div class="chart-section-title"><span style="width:8px;height:8px;border-radius:50%;background:${col};display:inline-block"></span>${tNames[type]} — ${tr('perGoalChart')}</div>`;
+    if(!goals.length){html+=`<div class="chart-card"><div style="color:#9ca3af;font-size:0.82rem;padding:4px">${tr('emptySub')}</div></div>`;}
+    else{
+      goals.forEach((g,gi)=>{
+        const pts=goalCumAvg(g);const avg=pts.length?pts[pts.length-1].avg:0;
+        const sz=chartMode==='doughnut'?'sm':'md';
+        html+=`<div class="chart-card" style="border-left:3px solid ${g.color||col}66"><div class="chart-card-title">${esc(g.name)}</div><div class="chart-card-sub">${tr('avgAccum')}: ${avg}%  ·  ${pts.length} ${tr('histDays')}</div><div class="chart-wrap ${sz}"><canvas id="cg-${g.id}"></canvas></div></div>`;
+      });
+      html+=`<div class="chart-card" style="border-left:3px solid ${col}"><div class="chart-card-title" style="color:${col}">${tNames[type]} — ${tr('globalChart')}</div><div class="chart-card-sub">${tr('avgAll')}</div><div class="chart-wrap md"><canvas id="cglob-${type}"></canvas></div></div>`;
+    }
+    html+=`</div>`;
+  });
+  body.innerHTML=html;
+
+  const isLight=!document.body.classList.contains('dark');
+  const legendColor=isLight?'#374151':'#e8ecf0';
+
+  types.forEach(type=>{
+    const goals=state.goals.filter(g=>g.type===type&&!g.archived);
+    if(!goals.length)return;
+    const col=TYPE_COLS[type];
+    const k=key(type);
+    goals.forEach((g,gi)=>{
+      const ctx=document.getElementById(`cg-${g.id}`);if(!ctx)return;
+      const gCol=g.color||GOAL_COLS[gi%GOAL_COLS.length];
+      const pts=goalCumAvg(g);const avg=pts.length?pts[pts.length-1].avg:0;
+      if(chartMode==='line'){
+        const labels=pts.map(p=>new Date(p.date+'T12:00:00').toLocaleDateString(tr('locale'),{day:'numeric',month:'short'}));
+        const data=pts.map(p=>p.avg);
+        charts[g.id]=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:g.name,data,borderColor:gCol,backgroundColor:gCol+'18',fill:true,tension:0.4,pointBackgroundColor:gCol,pointRadius:3,pointHoverRadius:5,borderWidth:2}]},
+          plugins:[{id:'pl',afterDraw(ch){const{ctx:c,data:d,chartArea:a}=ch;const m=ch.getDatasetMeta(0);if(!m.data.length)return;const last=m.data[m.data.length-1];const val=d.datasets[0].data[d.datasets[0].data.length-1];if(val===null)return;c.save();c.font='bold 11px Nunito';c.fillStyle=gCol;c.textAlign='left';c.fillText(val+'%',Math.min(last.x+4,a.right-24),last.y+4);c.restore();}}],
+          options:{...chartOpts(),plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw}%`}}}}});
+      } else {
+        charts[g.id]=new Chart(ctx,{type:'doughnut',data:{labels:[tr('colDone'),tr('colMissed')],datasets:[{data:[avg,100-avg],backgroundColor:[gCol,gCol+'22'],borderWidth:0,hoverOffset:3}]},
+          plugins:[{id:'ct',afterDraw(ch){const{ctx:c,chartArea:{width:w,height:h,left:l,top:t}}=ch;c.save();c.font='bold 18px Nunito';c.fillStyle=gCol;c.textAlign='center';c.textBaseline='middle';c.fillText(`${avg}%`,l+w/2,t+h/2-5);c.font='10px Nunito';c.fillStyle='#9ca3af';c.fillText(tr('avgAccum'),l+w/2,t+h/2+11);c.restore();}}],
+          options:{cutout:'68%',plugins:{legend:{display:false}},animation:{duration:300}}});
+      }
+    });
+
+    const gCtx=document.getElementById(`cglob-${type}`);if(!gCtx)return;
+    if(chartMode==='line'){
+      const{axis,series}=buildSeries(goals);
+      const labels=axis.map(d=>new Date(d+'T12:00:00').toLocaleDateString(tr('locale'),{day:'numeric',month:'short'}));
+      const avgS=axis.map((_,i)=>{const vals=series.map(s=>s[i]).filter(v=>v!==null);return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;});
+      const lastAvg=avgS.filter(v=>v!==null).pop()||0;
+      const datasets=[...goals.map((g,gi)=>({label:g.name,data:series[gi],borderColor:(g.color||GOAL_COLS[gi%GOAL_COLS.length])+'88',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:1.5})),{label:tr('globalChart'),data:avgS,borderColor:col,backgroundColor:col+'15',fill:true,tension:0.4,pointRadius:3,pointHoverRadius:5,borderWidth:3}];
+      charts['g_'+type]=new Chart(gCtx,{type:'line',data:{labels,datasets},
+        plugins:[{id:'gp',afterDraw(ch){const{ctx:c,data:d,chartArea:a}=ch;const m=ch.getDatasetMeta(d.datasets.length-1);if(!m.data.length)return;const last=m.data[m.data.length-1];c.save();c.font='bold 12px Nunito';c.fillStyle=col;c.textAlign='left';c.fillText(lastAvg+'%',Math.min(last.x+4,a.right-24),last.y+4);c.restore();}}],
+        options:{...chartOpts(),plugins:{legend:{display:goals.length<=5,position:'bottom',labels:{font:{family:'Nunito',size:11},padding:10,color:legendColor,boxWidth:10}},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>`${c.dataset.label}: ${c.raw}%`}}}}});
+    } else {
+      const avgs=goals.map(g=>{const pts=goalCumAvg(g);return pts.length?pts[pts.length-1].avg:0;});
+      const gAvg=avgs.length?Math.round(avgs.reduce((a,b)=>a+b,0)/avgs.length):0;
+      charts['g_'+type]=new Chart(gCtx,{type:'doughnut',data:{labels:goals.map(g=>g.name),datasets:[{data:avgs,backgroundColor:goals.map((g,gi)=>g.color||GOAL_COLS[gi%GOAL_COLS.length]),borderWidth:2,borderColor:isLight?'#ffffff':'#1a1d2e',hoverOffset:5}]},
+        plugins:[{id:'gc',afterDraw(ch){const{ctx:c,chartArea:{width:w,height:h,left:l,top:t}}=ch;c.save();c.font='bold 20px Nunito';c.fillStyle=col;c.textAlign='center';c.textBaseline='middle';c.fillText(`${gAvg}%`,l+w/2,t+h/2-6);c.font='10px Nunito';c.fillStyle='#9ca3af';c.fillText(tr('globalChart'),l+w/2,t+h/2+11);c.restore();}}],
+        options:{cutout:'55%',plugins:{legend:{display:true,position:'bottom',labels:{font:{family:'Nunito',size:11},padding:10,color:legendColor,boxWidth:10,generateLabels(ch){const d=ch.data;return d.labels.map((lbl,i)=>({text:`${lbl}  ${d.datasets[0].data[i]}%`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:'transparent',fontColor:legendColor,index:i}));}}},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}%`}}},animation:{duration:300}}});
+    }
+  });
+}
+
+// ── HISTORY ──
+function applyFilter(){fFrom=document.getElementById('filter-from').value||null;fTo=document.getElementById('filter-to').value||null;renderHistory();}
+function resetFilter(){fFrom=null;fTo=null;document.getElementById('filter-from').value='';document.getElementById('filter-to').value='';renderHistory();}
+function renderHistory(){
+  if(!document.getElementById('filter-to').value&&!fTo)document.getElementById('filter-to').value=td();
+  let sorted=[...state.history].sort((a,b)=>b.date.localeCompare(a.date));
+  if(fFrom)sorted=sorted.filter(h=>h.date>=fFrom);
+  if(fTo)sorted=sorted.filter(h=>h.date<=fTo);
+  const sum=document.getElementById('hist-summary'),list=document.getElementById('hist-list');
+  if(!sorted.length){sum.textContent='';list.innerHTML=`<div class="empty-state"><span class="empty-emoji">📭</span><div class="empty-title">${tr('noHist')}</div></div>`;return;}
+  const perfect=sorted.filter(h=>['daily','weekly','monthly','yearly'].every(t=>!h[t+'T']||h[t+'D']===h[t+'T'])&&['daily','weekly','monthly','yearly'].some(t=>h[t+'T']>0)).length;
+  sum.textContent=`${sorted.length} ${tr('histDays')} · ${perfect} ${tr('histPerfect')}`;
+  list.innerHTML=sorted.map(h=>{
+    const aD=(h.dailyD||0)+(h.weeklyD||0)+(h.monthlyD||0)+(h.yearlyD||0);
+    const aT=(h.dailyT||0)+(h.weeklyT||0)+(h.monthlyT||0)+(h.yearlyT||0);
+    const pct=Math.round(aD/Math.max(1,aT)*100);
+    const col=pct===100?'#1db954':pct>=50?'#4a6cf7':'#ef4444';
+    const parts=[];
+    if(h.dailyT)parts.push(`${tr('daily')}: ${h.dailyD||0}/${h.dailyT}`);
+    if(h.weeklyT)parts.push(`${tr('weekly')}: ${h.weeklyD||0}/${h.weeklyT}`);
+    if(h.monthlyT)parts.push(`${tr('monthly')}: ${h.monthlyD||0}/${h.monthlyT}`);
+    if(h.yearlyT)parts.push(`${tr('yearly')}: ${h.yearlyD||0}/${h.yearlyT}`);
+    return`<div class="hist-item"><div style="flex:1"><div class="hist-date">${fmtDate(h.date)}</div><div class="hist-meta">${parts.join(' · ')||'—'}</div><div class="hist-bar"><div class="hist-fill" style="width:${pct}%;background:${col}"></div></div></div><div class="hist-pct" style="color:${col};margin-left:12px">${pct}%</div></div>`;
+  }).join('');
+}
+
+// ── ACHIEVEMENTS ──
+const MEDALS=[
+  {id:'first',icon:'🌱',name:'Primeiro Passo',desc:'Cria o teu primeiro objetivo',check:s=>s.goals.length>=1},
+  {id:'five',icon:'⭐',name:'Colecionador',desc:'Cria 5 objetivos',check:s=>s.goals.length>=5},
+  {id:'ten',icon:'💫',name:'Ambicioso',desc:'Cria 10 objetivos',check:s=>s.goals.length>=10},
+  {id:'streak3',icon:'🔥',name:'Em Chamas',desc:'3 dias consecutivos perfeitos',check:s=>calcStreakGlobal()>=3},
+  {id:'streak7',icon:'🔥🔥',name:'Semana Perfeita',desc:'7 dias consecutivos perfeitos',check:s=>calcStreakGlobal()>=7},
+  {id:'streak30',icon:'💎',name:'Mestre',desc:'30 dias consecutivos perfeitos',check:s=>calcStreakGlobal()>=30},
+  {id:'perfect',icon:'✅',name:'Dia Perfeito',desc:'100% num dia',check:s=>s.history.some(h=>['daily','weekly','monthly','yearly'].every(t=>!h[t+'T']||h[t+'D']===h[t+'T'])&&['daily','weekly','monthly','yearly'].some(t=>h[t+'T']>0))},
+  {id:'alltype',icon:'🏆',name:'Completo',desc:'Objetivos nos 4 tipos',check:s=>['daily','weekly','monthly','yearly'].every(t=>s.goals.some(g=>g.type===t))},
+];
+function renderAchievements(){
+  let totalDone=0;state.goals.forEach(g=>{if(g.completions)totalDone+=Object.keys(g.completions).length;});
+  const streak=calcStreakGlobal();
+  const perf=state.history.filter(h=>['daily','weekly','monthly','yearly'].every(t=>!h[t+'T']||h[t+'D']===h[t+'T'])&&['daily','weekly','monthly','yearly'].some(t=>h[t+'T']>0)).length;
+  let html=`<div class="records-grid">
+    <div class="record-card"><div class="record-icon">🔥</div><div><div class="record-val">${streak}</div><div class="record-lbl">Sequência atual</div></div></div>
+    <div class="record-card"><div class="record-icon">💯</div><div><div class="record-val">${perf}</div><div class="record-lbl">Dias perfeitos</div></div></div>
+    <div class="record-card"><div class="record-icon">🎯</div><div><div class="record-val">${state.goals.length}</div><div class="record-lbl">Total objetivos</div></div></div>
+    <div class="record-card"><div class="record-icon">✅</div><div><div class="record-val">${totalDone}</div><div class="record-lbl">Total cumprimentos</div></div></div>
+  </div>
+  <div style="font-size:0.72rem;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Medalhas — ${MEDALS.filter(m=>m.check(state)).length}/${MEDALS.length}</div>
+  <div class="medals-grid">`;
+  MEDALS.forEach(m=>{
+    const ok=m.check(state);
+    html+=`<div class="medal-card ${ok?'unlocked':''}"><span class="medal-emoji" style="opacity:${ok?1:0.3}">${m.icon}</span><div class="medal-name">${m.name}</div><div class="medal-desc">${m.desc}</div></div>`;
+  });
+  html+=`</div>`;
+  document.getElementById('ach-body').innerHTML=html;
+}
+
+// ── SETTINGS ──
+function toggleS(id,arrId){
+  const el=document.getElementById(id),arr=document.getElementById(arrId);
+  const open=el.style.display==='none'||el.style.display==='';
+  el.style.display=open?'block':'none';
+  if(arr)arr.classList.toggle('open',open);
+}
+function toggleDark(v){
+  state.s.dark=v;save();
+  document.body.classList.toggle('dark',v);
+  applyDarkVars(v);
+}
+function applyDarkVars(dark){
+  if(dark){
+    document.documentElement.style.setProperty('--bg','#0d0f12');
+    document.documentElement.style.setProperty('--white','#1a1e26');
+    document.documentElement.style.setProperty('--surface','#1a1e26');
+    document.documentElement.style.setProperty('--border','#2a3040');
+    document.documentElement.style.setProperty('--text','#e8ecf0');
+    document.documentElement.style.setProperty('--text2','#a0aab8');
+    document.documentElement.style.setProperty('--text3','#5c6a7a');
+    document.documentElement.style.setProperty('--shadow','0 2px 12px rgba(0,0,0,0.25)');
+    Chart.defaults.color='#5c6a7a';Chart.defaults.borderColor='#2a3040';
+  } else {
+    document.documentElement.style.setProperty('--bg','#f4f6f9');
+    document.documentElement.style.setProperty('--white','#ffffff');
+    document.documentElement.style.setProperty('--surface','#ffffff');
+    document.documentElement.style.setProperty('--border','#eaedf2');
+    document.documentElement.style.setProperty('--text','#1a1d2e');
+    document.documentElement.style.setProperty('--text2','#6b7280');
+    document.documentElement.style.setProperty('--text3','#adb5bd');
+    document.documentElement.style.setProperty('--shadow','0 2px 12px rgba(0,0,0,0.06)');
+    Chart.defaults.color='#9ca3af';Chart.defaults.borderColor='#f0f2f5';
+  }
+}
+const ACCENT_PRESETS=['#1db954','#4a6cf7','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316','#ec4899'];
+function buildAccentDots(){
+  const el=document.getElementById('accent-dots');if(!el)return;
+  el.innerHTML=ACCENT_PRESETS.map(c=>`<div class="accent-dot ${cfg('accent')===c?'active':''}" style="background:${c}" onclick="setAccent('${c}',this)"></div>`).join('');
+}
+function setAccent(hex,el){
+  state.s.accent=hex;save();
+  document.documentElement.style.setProperty('--accent',hex);
+  document.documentElement.style.setProperty('--accent-dim',`rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},0.12)`);
+  document.documentElement.style.setProperty('--accent-dark',hex);
+  document.querySelectorAll('.accent-dot').forEach(d=>d.classList.remove('active'));
+  if(el)el.classList.add('active');
+}
+function setFontSize(s,btn){
+  state.s.fontSize=s;save();
+  document.documentElement.style.setProperty('--fs',{small:'13px',medium:'15px',large:'17px'}[s]);
+  document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function setSort(s,btn){
+  state.s.sort=s;save();
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGoals();
+}
+function toggleArchived(v){state.s.showArchived=v;save();renderGoals();}
+function toggleCelebrate(v){state.s.celebrate=v;save();}
+function saveUsername(v){
+  state.s.username=v;save();
+  const n=document.getElementById('hdr-name');if(n)n.textContent=v||tr('appName');
+  const av=document.getElementById('hdr-avatar');if(av)av.textContent=(v||'?')[0].toUpperCase();
+}
+function setLang(code){
+  lang=code;state.s.lang=code;save();
+  applyUI();
+  renderGoals();
+  if(document.getElementById('page-progress').classList.contains('active'))renderProgress();
+  if(document.getElementById('page-history').classList.contains('active'))renderHistory();
+  if(document.getElementById('page-achievements').classList.contains('active'))renderAchievements();
+  buildLangGrid();
+}
+function filterLangs(v){buildLangGrid(v);}
+function buildLangGrid(filter=''){
+  const g=document.getElementById('lang-grid');if(!g)return;
+  const fl=filter.toLowerCase();
+  const ptN=l=>LANG_PT[l.code]||l.name;
+  const f=LANGS.filter(l=>!fl||ptN(l).toLowerCase().includes(fl)||l.name.toLowerCase().includes(fl)||l.code.includes(fl));
+  g.innerHTML=f.map(l=>{const nm=ptN(l);const nat=l.name!==nm?`<span style="color:var(--text3);font-size:0.7rem"> (${l.name})</span>`:'';return`<button class="lang-btn-s ${l.code===lang?'active':''}" onclick="setLang('${l.code}')"><span>${l.flag}</span><span>${nm}${nat}</span></button>`;}).join('');
+}
+function exportData(){const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(JSON.stringify(state,null,2));a.download='objetivos_backup.json';a.click();}
+function importData(){document.getElementById('import-file').click();}
+function handleImport(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(!d.goals)throw 0;state=d;save();applyUI();renderGoals();alert('Importado com sucesso!');}catch{alert('Ficheiro inválido.');}};r.readAsText(f);}
+function askReset(type){pendingReset=type;const n={daily:'Diários',weekly:'Semanais',monthly:'Mensais',yearly:'Anuais',all:'Tudo'};document.getElementById('confirm-title').textContent='Reiniciar '+n[type]+'?';document.getElementById('confirm-msg').textContent='Os registos de conclusão serão apagados. Os objetivos ficam intactos.';document.getElementById('confirm-overlay').style.display='flex';}
+function closeConfirm(){document.getElementById('confirm-overlay').style.display='none';pendingReset=null;}
+function doReset(){const types=pendingReset==='all'?['daily','weekly','monthly','yearly']:[pendingReset];state.goals.forEach(g=>{if(types.includes(g.type))g.completions={};});state.history.forEach(h=>{types.forEach(t=>{h[t+'D']=0;});});lastCelebrated={};save();renderGoals();closeConfirm();}
+
+function applyUI(){
+  const s=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  const h=new Date().getHours();const greeting=h<12?tr('morning'):h<18?tr('afternoon'):tr('evening');
+  s('hdr-greeting',greeting+',');
+  const name=cfg('username')||tr('appName');
+  s('hdr-name',name);
+  const av=document.getElementById('hdr-avatar');if(av)av.textContent=(cfg('username')||'?')[0].toUpperCase();
+
+  // bottom nav
+  s('lbl-nav-goals',tr('navGoals'));s('lbl-nav-progress',tr('navProgress'));
+  s('lbl-nav-history',tr('navHistory'));s('lbl-nav-achievements',tr('navAch'));s('lbl-nav-settings',tr('navSettings'));
+
+  // type tabs
+  const tabTexts={daily:'☀️ '+tr('daily'),weekly:'📅 '+tr('weekly'),monthly:'🗓 '+tr('monthly'),yearly:'📆 '+tr('yearly')};
+  const tabs=document.querySelectorAll('.type-tab');
+  const tabTypes=['daily','weekly','monthly','yearly'];
+  tabs.forEach((t,i)=>{t.textContent=tabTexts[tabTypes[i]];});
+
+  // chart tabs
+  s('ct-line','📈 '+tr('chartLine')||'📈 Linha');
+  s('ct-donut','🍩 '+tr('chartDonut')||'🍩 Circular');
+
+  // page titles/subs
+  s('pg-progress-title',tr('progressTitle'));s('pg-progress-sub',tr('progressSub'));
+  s('pg-history-title',tr('histTitle'));s('pg-history-sub',tr('histSub'));
+  s('pg-ach-title',tr('achTitle'));s('pg-ach-sub',tr('achSub'));
+  s('pg-set-title',tr('setTitle'));s('pg-set-sub',tr('setSub'));
+
+  // history filters
+  s('lbl-from',tr('filterFrom'));s('lbl-to',tr('filterTo'));
+  const bf=document.getElementById('btn-filt');if(bf)bf.textContent=tr('filterBtn')||'Filtrar';
+  const br=document.getElementById('btn-filt-rst');if(br)br.textContent=tr('filterReset')||'Tudo';
+
+  // settings labels
+  s('lbl-s-profile',tr('sProfile')||'Perfil');
+  s('lbl-s-appear',tr('sAppearance')||'Aparência');
+  s('lbl-s-goals',tr('sGoals')||'Objetivos');
+  s('lbl-lang',tr('langLbl')||'Idioma');
+  s('lang-badge',LANG_PT[lang]||lang);
+  s('lbl-s-data',tr('sData')||'Dados');
+  s('lbl-reset',tr('sReset')||'Reiniciar Progresso');
+  s('lbl-username',tr('sUsername')||'O teu nome');
+  s('lbl-darkmode',tr('sDarkMode')||'Modo Escuro');
+  s('lbl-accent',tr('sAccent')||'Cor Principal');
+  s('lbl-fontsize',tr('sFont')||'Tamanho da Letra');
+  s('lbl-sort',tr('sSort')||'Ordenação');
+  s('lbl-archived',tr('sShowArchived')||'Mostrar arquivados');
+  s('lbl-celebrate',tr('sCelebrate')||'Celebrar 100%');
+
+  // sort buttons
+  s('sort-created',tr('sSortDate')||'Data');
+  s('sort-name',tr('sSortName')||'Nome');
+  s('sort-priority',tr('sSortPriority')||'Prioridade');
+  s('sort-done',tr('sSortDone')||'Feitos último');
+
+  // lang search placeholder
+  const ls=document.getElementById('lang-search');if(ls)ls.placeholder=tr('langSearch')||'Pesquisar idioma…';
+
+  // input username placeholder
+  const un=document.getElementById('input-username');if(un){un.value=cfg('username')||'';un.placeholder=tr('sUsername')||'Ex: João…';}
+
+  // sync toggles
+  const dk=document.getElementById('tog-dark');if(dk)dk.checked=!!cfg('dark');
+  const ar=document.getElementById('tog-archived');if(ar)ar.checked=!!cfg('showArchived');
+  const ce=document.getElementById('tog-celebrate');if(ce)ce.checked=cfg('celebrate')!==false;
+
+  // sync sort
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  const sb=document.getElementById('sort-'+(cfg('sort')||'created'));if(sb)sb.classList.add('active');
+
+  buildAccentDots();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    if(document.getElementById('login-screen')&&document.getElementById('login-screen').style.display!=='none'){doLogin();return;}
+    if(document.getElementById('modal').style.display==='flex'){saveGoal();return;}
+  }
+  if(e.key==='Escape'){closeModal();closeConfirm();closeDelConfirm();}
+});
+
+if(!state.s)state.s={lang:'pt',dark:false,accent:'#1db954',fontSize:'medium',username:'',sort:'created',showArchived:false,celebrate:true};
+if(cfg('dark'))applyDarkVars(true);
+if(cfg('accent')&&cfg('accent')!=='#1db954')setAccent(cfg('accent'),null);
+document.documentElement.style.setProperty('--fs',{small:'13px',medium:'15px',large:'17px'}[cfg('fontSize')||'medium']);
+checkAutoLogin();
+let loginMode='login'; // 'login' or 'register'
+function toggleLoginMode(){
+  loginMode=loginMode==='login'?'register':'login';
+  const isReg=loginMode==='register';
+  document.getElementById('login-pass2-wrap').style.display=isReg?'block':'none';
+  document.getElementById('login-btn').textContent=isReg?'Criar Conta':'Entrar';
+  document.getElementById('login-toggle').innerHTML=isReg
+    ?'Já tens conta? <b onclick="toggleLoginMode()">Entrar</b>'
+    :'Não tens conta? <b onclick="toggleLoginMode()">Criar conta</b>';
+  clearLoginErrors();
+}
+function clearLoginErrors(){
+  ['login-name-err','login-pass-err','login-pass2-err'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.style.display='none';
+  });
+  ['login-name','login-pass','login-pass2'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.classList.remove('err');
+  });
+}
+function showLoginError(inputId,errId,msg){
+  const inp=document.getElementById(inputId),err=document.getElementById(errId);
+  if(inp){inp.classList.add('err');inp.classList.add('shake');setTimeout(()=>inp.classList.remove('shake'),400);}
+  if(err){err.textContent=msg;err.style.display='block';}
+}
+function doLogin(){
+  clearLoginErrors();
+  const name=document.getElementById('login-name').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!name){showLoginError('login-name','login-name-err','Introduz o teu nome');return;}
+  if(!pass||pass.length<3){showLoginError('login-pass','login-pass-err','Senha deve ter pelo menos 3 caracteres');return;}
+  if(loginMode==='register'){
+    const pass2=document.getElementById('login-pass2').value;
+    if(pass!==pass2){showLoginError('login-pass2','login-pass2-err','As senhas não coincidem');return;}
+    // save credentials
+    state.s.username=name;state.s.pin=btoa(pass);save();
+  } else {
+    // check credentials
+    if(state.s.pin&&atob(state.s.pin)!==pass){
+      showLoginError('login-pass','login-pass-err','Senha incorreta');return;
+    }
+    if(!state.s.pin){state.s.username=name;state.s.pin=btoa(pass);save();}
+  }
+  enterApp(name);
+}
+function enterAsGuest(){
+  const name=document.getElementById('login-name').value.trim()||'Convidado';
+  state.s.username=name;save();
+  enterApp(name);
+}
+function enterApp(name){
+  document.getElementById('login-screen').style.display='none';
+  state.s.username=name;save();
+  applyUI();renderGoals();
+}
+function checkAutoLogin(){
+  // if already registered and has pin stored, show login; if guest, skip login
+  const ls=document.getElementById('login-screen');
+  if(state.s.username&&!state.s.pin){
+    // was a guest before — skip login
+    ls.style.display='none';applyUI();renderGoals();return;
+  }
+  if(state.s.username&&state.s.pin){
+    // returning user — pre-fill name
+    document.getElementById('login-name').value=state.s.username;
+    document.getElementById('login-btn').textContent='Entrar';
+  }
+  // show login screen
+  ls.style.display='flex';
+}
+
+// ══════════════════════════════
+//  PWA — Manifest + Service Worker
+// ══════════════════════════════
+
+// Generate SVG icon as base64
+const iconSVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+  <polyline points="80,360 160,280 240,320 340,180" stroke="white" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+  <circle cx="80" cy="360" r="24" fill="#7ee8fa"/>
+  <circle cx="160" cy="280" r="24" fill="#7ee8fa"/>
+  <circle cx="240" cy="320" r="24" fill="#7ee8fa"/>
+  <circle cx="340" cy="180" r="24" fill="#7ee8fa"/>
+  <line x1="340" y1="180" x2="420" y2="100" stroke="#1db954" stroke-width="25" stroke-linecap="round"/>
+  <polyline points="370,100 420,100 420,150" stroke="#1db954" stroke-width="25" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M275 140 C275 140 315 170 295 210 C295 210 330 190 320 150 C340 170 360 200 340 240 C320 270 275 280 255 240 C235 200 255 140 275 140Z" fill="white" opacity="0.85"/>
+  <path d="M440 300 A185 185 0 1 1 260 80" stroke="#1db954" stroke-width="20" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a56db"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+</svg>`;
+
+const iconB64='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(iconSVG)));
+
+// Set apple touch icon
+const appleIcon=document.getElementById('pwa-icon');
+if(appleIcon)appleIcon.href=iconB64;
+
+// Build manifest object
+const manifest={
+  name:'Progressa',
+  short_name:'Progressa',
+  description:'Acompanha os teus objetivos diários, semanais, mensais e anuais.',
+  start_url:'.',
+  display:'standalone',
+  background_color:'#0d0f12',
+  theme_color:'#0d0f12',
+  orientation:'portrait',
+  lang:'pt',
+  icons:[
+    {src:iconB64,sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'},
+    {src:iconB64,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'},
+  ]
+};
+
+// Inject manifest as blob URL
+const manifestBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+const manifestURL=URL.createObjectURL(manifestBlob);
+document.getElementById('pwa-manifest').href=manifestURL;
+
+// Register Service Worker (inline via blob)
+if('serviceWorker' in navigator){
+  const swCode=`
+const CACHE='progressa-v1';
+const ASSETS=['/'];
+self.addEventListener('install',e=>{
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}));
+  self.skipWaiting();
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch',e=>{
+  e.respondWith(
+    caches.match(e.request).then(cached=>{
+      if(cached)return cached;
+      return fetch(e.request).then(resp=>{
+        if(resp&&resp.status===200&&resp.type==='basic'){
+          const clone=resp.clone();
+          caches.open(CACHE).then(c=>c.put(e.request,clone));
+        }
+        return resp;
+      }).catch(()=>cached);
+    })
+  );
+});`;
+  const swBlob=new Blob([swCode],{type:'application/javascript'});
+  const swURL=URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL,{type:'classic'}).catch(()=>{});
+}
+
+// Show install banner if not installed
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  showInstallBanner();
+});
+
+function showInstallBanner(){
+  if(document.getElementById('install-banner'))return;
+  const banner=document.createElement('div');
+  banner.id='install-banner';
+  banner.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:440px;background:#1a1e26;border:1.5px solid #2a3040;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideUp 0.3s ease;';
+  banner.innerHTML=`
+    <svg width="36" height="36" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+      <circle cx="26" cy="26" r="26" fill="url(#banBg)"/>
+      <polyline points="8,36 16,28 24,32 34,18" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="8" cy="36" r="2.5" fill="#7ee8fa"/><circle cx="16" cy="28" r="2.5" fill="#7ee8fa"/><circle cx="24" cy="32" r="2.5" fill="#7ee8fa"/><circle cx="34" cy="18" r="2.5" fill="#7ee8fa"/>
+      <line x1="34" y1="18" x2="42" y2="10" stroke="#1db954" stroke-width="2.5" stroke-linecap="round"/>
+      <polyline points="37,10 42,10 42,15" stroke="#1db954" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <defs><linearGradient id="banBg" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1a56db"/><stop offset="100%" stop-color="#0ea5e9"/></linearGradient></defs>
+    </svg>
+    <div style="flex:1">
+      <div style="font-weight:800;font-size:0.9rem;color:#e8ecf0">Instalar Progressa</div>
+      <div style="font-size:0.76rem;color:#6b7280;margin-top:2px">Adiciona ao ecrã inicial para acesso rápido</div>
+    </div>
+    <button onclick="installApp()" style="background:linear-gradient(135deg,#4a6cf7,#1db954);color:#fff;border:none;padding:8px 14px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:0.8rem;font-weight:800;cursor:pointer;white-space:nowrap">Instalar</button>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#5c6a7a;cursor:pointer;padding:4px;font-size:1rem">✕</button>`;
+  document.body.appendChild(banner);
+}
+
+function installApp(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(()=>{deferredPrompt=null;const b=document.getElementById('install-banner');if(b)b.remove();});
+  }
+}
+
+window.addEventListener('appinstalled',()=>{
+  const b=document.getElementById('install-banner');if(b)b.remove();
+  deferredPrompt=null;
+});
+</script>
+</body>
+</html>
